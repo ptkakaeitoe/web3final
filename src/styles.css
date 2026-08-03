@@ -111,7 +111,13 @@ label { display:block; margin-bottom:8px; font-size:9px; font-weight:900; letter
 .inventory-section { background:#eaf3ff; }.inventory-empty{min-height:190px;padding:30px;display:grid;grid-template-columns:120px 1fr;grid-template-rows:1fr auto;align-items:center;column-gap:28px}.mini-pack{grid-row:1/3;width:92px;height:118px;display:grid;place-items:center;color:white;border:4px solid var(--ink);border-radius:7px;background:var(--purple);box-shadow:8px 8px 0 var(--ink);font-size:50px;font-weight:800;transform:rotate(-3deg)}.inventory-empty h3{margin:0 0 6px;font-size:24px;font-weight:800}.inventory-empty p{margin:0;font-size:12px;font-weight:600}.inventory-empty button,.inventory-empty a{grid-column:2;justify-self:start;padding:10px 15px;border-radius:6px;text-decoration:none;font-size:11px}
 .inventory-grid{display:grid;grid-template-columns:1fr;gap:18px}.owned-pack{min-height:190px;padding:22px 26px;display:grid;grid-template-columns:138px 1fr auto;align-items:center;gap:26px}.owned-pack-art{width:124px;height:150px;display:grid;place-items:center;border:2px solid var(--ink);border-radius:9px;color:white;background:var(--purple);box-shadow:7px 7px 0 var(--ink);font-size:48px;transform:rotate(-2deg)}.owned-pack-copy h3{margin:6px 0;font-size:25px;font-weight:700}.owned-pack-copy small{color:var(--blue-dark);font-size:9px;font-weight:800;letter-spacing:.08em}.owned-pack-copy p{max-width:470px;margin:0;color:#607087;font-size:12px;font-weight:500;line-height:1.5}.owned-pack>button{min-width:130px;padding:12px 15px;border:2px solid var(--ink);border-radius:7px;color:white;background:var(--blue);box-shadow:0 3px 0 var(--ink);font-size:11px;font-weight:800}
 
-.collection { margin-bottom:64px; }.card-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.nft-card{padding:10px;border:3px solid var(--ink);border-radius:10px;background:white;box-shadow:6px 6px 0 var(--ink);transition:transform .2s}.nft-card:hover{transform:translateY(-4px)}.card-meta{display:flex;justify-content:space-between;padding:4px 3px 10px;font-size:8px;font-weight:900}.card-meta span:last-child{color:var(--accent)}.card-art{aspect-ratio:1;position:relative;overflow:hidden;border:3px solid var(--ink);border-radius:7px;background:var(--accent)}.card-art>img{position:absolute;width:200%;height:200%;max-width:none;display:block}.nft-card:nth-child(1) .card-art>img{left:0;top:0}.nft-card:nth-child(2) .card-art>img{left:-100%;top:0}.nft-card:nth-child(3) .card-art>img{left:0;top:-100%}.nft-card:nth-child(4) .card-art>img{left:-100%;top:-100%}.rarity-chip{position:absolute;left:9px;bottom:9px;padding:6px 8px;border:2px solid var(--ink);border-radius:4px;color:var(--ink);background:var(--accent);font-size:8px;font-weight:900;text-transform:uppercase}.locked-art{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,249,233,.58)}.locked-art span{width:54px;height:54px;display:grid;place-items:center;border:3px solid var(--ink);border-radius:8px;background:white;box-shadow:4px 4px 0 var(--ink);font-size:31px;font-weight:800}.locked-art small{margin-top:10px;padding:5px 7px;background:white;border:2px solid var(--ink);font-size:7px;font-weight:900}.card-copy{padding:12px 3px 3px;display:flex;justify-content:space-between;align-items:end}.card-copy small{font-size:7px;font-weight:900}.card-copy h3{margin:2px 0 0;font-size:18px;font-weight:800}.card-copy>strong{color:var(--accent);font-size:14px;font-weight:800;text-align:right;text-shadow:1px 1px 0 var(--ink)}.card-copy>strong small{display:block;color:var(--ink);text-shadow:none}.not-owned{filter:saturate(.82)}
+.collection { margin-bottom:64px; }.card-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.nft-card{padding:10px;border:3px solid var(--ink);border-radius:10px;background:white;box-shadow:6px 6px 0 var(--ink);transition:transform .2s}.nft-card:hover{transform:translateY(-4px)}.card-meta{display:flex;justify-content:space-between;padding:4px 3px 10px;font-size:8px;font-weight:900}.card-meta span:last-child{color:var(--accent)}.card-art{aspect-ratio:1;position:relative;overflow:hidden;border:3px solid var(--ink);border-radius:7px;background:var(--accent)}.card-art>img{position:absolute;width:200%;height:200%;max-width:none;display:block}.nft-card.common .card-art>img{left:0;top:0}.nft-card.rare .card-art>img{left:-100%;top:0}.nft-card.epic .card-art>img{left:0;top:-100%}.nft-card.legendary .card-art>img{left:-100%;top:-100%}.rarity-chip{position:absolute;left:9px;bottom:9px;padding:6px 8px;border:2px solid var(--ink);border-radius:4px;color:var(--ink);background:var(--accent);font-size:8px;font-weight:900;text-transform:uppercase}.locked-art{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,249,233,.58)}.locked-art span{width:54px;height:54px;display:grid;place-items:center;border:3px solid var(--ink);border-radius:8px;background:white;box-shadow:4px 4px 0 var(--ink);font-size:31px;font-weight:800}.locked-art small{margin-top:10px;padding:5px 7px;background:white;border:2px solid var(--ink);font-size:7px;font-weight:900}.card-copy{padding:12px 3px 3px;display:flex;justify-content:space-between;align-items:end}.card-copy small{font-size:7px;font-weight:900}.card-copy h3{margin:2px 0 0;font-size:18px;font-weight:800}.card-copy>strong{color:var(--accent);font-size:14px;font-weight:800;text-align:right;text-shadow:1px 1px 0 var(--ink)}.card-copy>strong small{display:block;color:var(--ink);text-shadow:none}.not-owned{filter:saturate(.82)}
+.collection-group { margin-top:24px; padding:24px; border:1px solid #17233d40; border-radius:14px; }
+.collection-group-heading { margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; }
+.collection-group-heading>div { display:flex; align-items:center; gap:10px; }.collection-group-heading span { width:28px; height:28px; display:grid; place-items:center; border-radius:50%; color:white; background:var(--ink); font-size:12px; font-weight:800; }.collection-group-heading strong { font-size:15px; }.collection-group-heading small { color:#69758a; font-size:8px; font-weight:800; letter-spacing:.09em; }
+.owned-group { border-color:#72a75f80; background:#f0f8e9; }.owned-group .collection-group-heading span { background:var(--green); }.owned-group .nft-card { box-shadow:4px 4px 0 #41743d; }
+.locked-group { background:#eef1f5; border-style:dashed; }.locked-group .collection-group-heading span { background:#7b8798; }.locked-group .nft-card { background:#f8f9fa; box-shadow:3px 3px 0 #7a8494; }.locked-group .card-art { filter:grayscale(.28); }.locked-group .locked-art { background:rgba(238,241,245,.7); }
+.collection-complete { padding:32px; border:1px dashed #5f9158; border-radius:10px; color:#32612d; background:white; text-align:center; font-size:13px; font-weight:700; }
 .toast{position:fixed;left:50%;bottom:24px;z-index:50;transform:translateX(-50%);min-width:min(500px,calc(100vw - 28px));padding:13px 14px;display:flex;justify-content:space-between;align-items:center;border:3px solid var(--ink);border-radius:8px;color:white;background:var(--purple);box-shadow:6px 6px 0 var(--ink);font-size:11px;font-weight:800}.toast button{border:0;color:white;background:transparent;font-size:20px}
 footer{width:min(1480px,calc(100% - 64px));margin:auto;padding:24px 0 32px;display:flex;justify-content:space-between;align-items:center;border-top:3px solid var(--ink)}footer .brand>span{transform:scale(.72)}footer p{font-size:10px;font-weight:700}
 
@@ -187,3 +193,58 @@ footer { border-top-width:2px; }
 @keyframes backdrop-in{from{opacity:0}to{opacity:1}}@keyframes modal-build{from{opacity:0;transform:translateY(28px) scale(.92)}to{opacity:1;transform:none}}@keyframes success-pop{from{opacity:0;transform:scale(.35) rotate(-12deg)}to{opacity:1;transform:none}}@keyframes box-land{0%{opacity:0;transform:translateY(-90px) rotate(12deg) scale(.7)}65%{opacity:1;transform:translateY(8px) rotate(-5deg)}100%{transform:rotate(-2deg)}}@keyframes card-reveal{0%{opacity:0;filter:brightness(2);transform:perspective(800px) rotateY(180deg) scale(.35)}45%{opacity:1;transform:perspective(800px) rotateY(90deg) scale(.62)}72%{transform:perspective(800px) rotateY(-10deg) scale(1.08)}100%{filter:none;transform:none}}@keyframes confetti-burst{0%{opacity:0;transform:translate(0,0) rotate(0)}18%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) rotate(var(--r))}}@keyframes rays-awaken{0%{opacity:0;transform:scale(.25) rotate(-30deg)}55%{opacity:.9}100%{opacity:.55;transform:scale(1)}}@keyframes ray-spin{to{transform:rotate(360deg)}}@keyframes reveal-spark{0%{opacity:0;transform:translate(0,0) scale(0)}30%{opacity:1}100%{opacity:0;transform:translate(var(--sx),var(--sy)) rotate(180deg) scale(1.5)}}@keyframes reveal-copy{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@keyframes reveal-room{0%,34%{box-shadow:10px 10px 0 #0c1426}58%{box-shadow:10px 10px 0 #0c1426,0 0 80px #8c63dc70}100%{box-shadow:10px 10px 0 #0c1426}}
 @media(max-width:540px){.celebration-modal{min-height:440px;padding:36px 24px 28px}.celebration-modal h2{font-size:34px}.reveal-stage{width:220px;height:220px}.reveal-card{width:205px}.celebration-box{width:160px;height:192px;font-size:82px}.owned-pack{padding:18px;grid-template-columns:92px 1fr;gap:16px}.owned-pack-art{width:82px;height:102px;font-size:34px;box-shadow:5px 5px 0 var(--ink)}.owned-pack-copy h3{font-size:20px}.owned-pack>button{grid-column:1/-1;width:100%}}
 @media(prefers-reduced-motion:reduce){.celebration-backdrop,.celebration-modal,.success-build,.celebration-box,.reveal-card,.reveal-rays,.reveal-sparks i,.celebration-type-reveal>small,.celebration-type-reveal>h2,.celebration-type-reveal>p,.celebration-type-reveal>.celebration-primary,.confetti i{animation:none}.confetti,.reveal-sparks,.reveal-rays{display:none}}
+
+/* Mobile composition: fewer nested boxes and more deliberate breathing room. */
+@media(max-width:760px){
+  body{background-size:28px 28px}
+  .hero{width:calc(100% - 20px);margin-top:12px}
+  .hero-copy{padding-left:24px;padding-right:24px}
+  .shop-section,.inventory-section,.collection{width:calc(100% - 32px);margin-top:72px}
+  .shop-section,.inventory-section{padding:0;border:0;background:transparent;box-shadow:none}
+  .section-heading{margin-bottom:28px;padding:0 2px}
+  .section-heading p{margin-top:12px;max-width:34rem;line-height:1.6}
+  .shop-grid{gap:36px}
+  .trade-card,.shop-pack-card,.inventory-empty,.owned-pack{box-shadow:3px 3px 0 #17233db8}
+  .trade-card{padding:24px}
+  .card-heading{margin-bottom:26px}
+  .trade-balance{margin-bottom:20px;padding:14px}
+  .toggle{margin-bottom:28px}
+  .input{height:62px}
+  .quote{margin-top:18px;margin-bottom:26px}
+  .primary{padding:15px 17px}
+  .shop-pack-visual{min-height:390px}
+  .shop-pack-info{padding:34px 24px}
+  .shop-pack-info h3{margin-top:20px;margin-bottom:14px}
+  .odds{margin:28px 0;gap:12px}
+  .odds span{padding:10px}
+  .pay-options{gap:14px}
+  .pay-options button{min-height:72px;padding:15px}
+  .inventory-empty{padding:30px 26px;row-gap:24px}
+  .inventory-grid{gap:24px}
+  .owned-pack{min-height:0;padding:24px;row-gap:22px}
+  .collection>.section-heading{margin-bottom:34px}
+  .collection-group{margin-top:32px;padding:20px 18px}
+  .collection-group-heading{margin-bottom:22px;gap:12px}
+  .card-row{gap:26px}
+  footer{margin-top:72px;padding-top:28px}
+}
+@media(max-width:540px){
+  .hero{height:610px}
+  .hero-copy{padding-top:58px}
+  .hero h1{font-size:clamp(42px,12vw,50px);line-height:.96}
+  .hero p{margin-top:4px;margin-bottom:26px;line-height:1.65}
+  .hero-actions{gap:22px}
+  .shop-section,.inventory-section,.collection{width:calc(100% - 28px);margin-top:76px}
+  .section-heading h2{font-size:32px;line-height:1.08}
+  .trade-card{padding:22px 20px}
+  .shop-pack-info{padding:32px 20px 36px}
+  .odds{grid-template-columns:1fr;gap:10px}
+  .inventory-empty{grid-template-columns:82px 1fr;padding:26px 20px}
+  .collection-group{padding:18px 14px 22px}
+  .collection-group-heading{align-items:flex-start;flex-direction:column}
+  .collection-group-heading small{padding-left:38px}
+  .card-row{gap:30px}
+  .nft-card{padding:12px}
+  .card-copy{padding-top:16px}
+  .toast{bottom:16px}
+}
