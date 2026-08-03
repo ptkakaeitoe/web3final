@@ -3,10 +3,10 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const rarities = [
-  { name: "Common", creature: "Mosskin", reward: 25, className: "common", image: "/assets/card-common.jpg" },
-  { name: "Rare", creature: "Ripplefin", reward: 75, className: "rare", image: "/assets/card-rare.jpg" },
-  { name: "Epic", creature: "Cloudling", reward: 200, className: "epic", image: "/assets/card-epic.jpg" },
-  { name: "Legendary", creature: "Solmane", reward: 500, className: "legendary", image: "/assets/card-legendary.jpg" },
+  { name: "Common", creature: "Mosskin", reward: 25, className: "common", image: "/assets/brick-creatures-sheet.png" },
+  { name: "Rare", creature: "Ripplefin", reward: 75, className: "rare", image: "/assets/brick-creatures-sheet.png" },
+  { name: "Epic", creature: "Cloudling", reward: 200, className: "epic", image: "/assets/brick-creatures-sheet.png" },
+  { name: "Legendary", creature: "Solmane", reward: 500, className: "legendary", image: "/assets/brick-creatures-sheet.png" },
 ];
 
 function App() {
@@ -34,40 +34,43 @@ function App() {
   return (
     <main>
       <nav className="site-nav">
-        <a className="brand" href="#"><span>M</span><strong>Mystery Club</strong></a>
-        <div className="nav-menu">
-          <a href="#shop">Pack shop</a>
-          <a href="#my-packs">My packs</a>
-          <a href="#collection">Collection</a>
-        </div>
-        <div className="nav-actions">
-          <button className={`wallet ${account ? "connected" : ""}`} onClick={connect}>
-            {account ? "Preview connected" : "Connect wallet"}
-          </button>
+        <div className="nav-inner">
+          <a className="brand" href="#"><span><i /><i /><i /><i /></span><strong>Mystery Club</strong></a>
+          <div className="nav-menu">
+            <a href="#shop">Build shop</a>
+            <a href="#my-packs">My boxes</a>
+            <a href="#collection">Bricklings</a>
+          </div>
+          <div className="nav-actions">
+            <button className={`wallet ${account ? "connected" : ""}`} onClick={connect}>
+              {account ? "Preview connected" : "Connect wallet"}
+            </button>
+          </div>
         </div>
       </nav>
 
       <header className="hero">
-        <img src="/assets/mystery-creatures-hero.png" alt="" />
+        <img src="/assets/brick-creatures-hero.png" alt="Four colorful brick-built creatures gathered around a glowing mystery cube" />
         <div className="hero-copy">
-          <span className="kicker">A tiny world of on-chain creatures</span>
-          <h1>Collect something<br />wonderfully <em>weird.</em></h1>
-          <p>Pick up a mystery pack, reveal a creature card, and keep every collectible in your wallet.</p>
-          <a className="hero-button" href="#shop">Explore the pack shop <span>↓</span></a>
+          <span className="kicker">BUILD · REVEAL · COLLECT</span>
+          <h1>Meet your next<br /><em>Brickling.</em></h1>
+          <p>Crack open a mystery box, discover a buildable creature, and grow a colorful collection that is uniquely yours.</p>
+          <div className="hero-actions"><a className="hero-button" href="#shop">Open the build shop <span>→</span></a><a className="text-button" href="#collection">Meet the crew ↓</a></div>
         </div>
+        <div className="hero-stats"><span><strong>4</strong>CREATURES</span><span><strong>1</strong>MYSTERY BOX</span><span><strong>∞</strong>ADVENTURES</span></div>
       </header>
 
       <section className="shop-section" id="shop">
-        <div className="section-heading">
-          <div><span>PACK SHOP</span><h2>Ready for a surprise?</h2></div>
-          <p>Get MYST, then choose how you want to open a pack.</p>
+          <div className="section-heading">
+          <div><span>BUILD SHOP / 01</span><h2>Pick your mystery box</h2></div>
+          <p>Grab some MYST bricks, then unlock one surprise creature.</p>
         </div>
 
         <div className="shop-grid">
           <article className="trade-card">
             <div className="card-heading">
               <div><span className="step">1</span><div><small>FIRST, GET SOME TOKENS</small><h3>Trade MYST</h3></div></div>
-              <span className="curve-label">Bonding curve</span>
+              <span className="curve-label">LIVE RATE</span>
             </div>
             <div className="trade-balance">
               <span>Wallet balance</span>
@@ -91,13 +94,13 @@ function App() {
               <div className="foil-pack">
                 <div className="foil-top"><span>MC</span><span>01</span></div>
                 <div className="foil-creature">?</div>
-                <div><strong>Wonder Pack</strong><small>ONE CREATURE CARD</small></div>
+                <div><strong>Mystery Box</strong><small>ONE BRICKLING INSIDE</small></div>
               </div>
             </div>
             <div className="shop-pack-info">
               <div className="product-step"><span className="step">2</span><small>THEN, CHOOSE YOUR PACK</small></div>
-              <h3>A new creature is waiting.</h3>
-              <p>Each sealed pack reveals one collectible card and a MYST reward. Rarity is decided on Sepolia after purchase.</p>
+              <h3>What will you build?</h3>
+              <p>Every colorful box holds one surprise Brickling and a bonus MYST reward. Some builds are much harder to find.</p>
               <div className="odds">
                 <span><i className="common" />70% Common</span><span><i className="rare" />20% Rare</span>
                 <span><i className="epic" />9% Epic</span><span><i className="legendary" />1% Legendary</span>
@@ -117,13 +120,13 @@ function App() {
 
       <section className="inventory-section" id="my-packs">
         <div className="section-heading">
-          <div><span>MY PACKS</span><h2>Your sealed packs</h2></div>
-          <p>Purchased packs live here until you reveal them.</p>
+          <div><span>BUILD BENCH / 02</span><h2>Your mystery boxes</h2></div>
+          <p>Everything waiting to be opened lives on your workbench.</p>
         </div>
         {!account ? (
-          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>Connect to see your packs</h3><p>Your unopened and revealed packs will appear here.</p></div><button onClick={connect}>Connect wallet</button></div>
+          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>Connect to see your boxes</h3><p>Your sealed and revealed mystery boxes will appear here.</p></div><button onClick={connect}>Connect wallet</button></div>
         ) : ownedPacks.length === 0 ? (
-          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>No packs yet</h3><p>Buy your first Wonder Pack from the shop above.</p></div><a href="#shop">Go to pack shop</a></div>
+          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>No boxes yet</h3><p>Pick up your first Mystery Box from the shop above.</p></div><a href="#shop">Go to build shop</a></div>
         ) : (
           <div className="inventory-grid">
             {ownedPacks.map((pack) => {
@@ -148,8 +151,8 @@ function App() {
 
       <section className="collection" id="collection">
         <div className="section-heading">
-          <div><span>MY COLLECTION</span><h2>Creatures you’ve met</h2></div>
-          <p>Four rarities, each with its own MYST reward.</p>
+          <div><span>BRICKLING CREW / 03</span><h2>Meet the whole crew</h2></div>
+          <p>Four colorful builds. Can you discover every one?</p>
         </div>
         <div className="card-row">
           {rarities.map((rarity, id) => {
@@ -159,7 +162,7 @@ function App() {
                 <div className="card-meta"><span>MC—0{id + 1}</span><span>{owned ? `${cards[id]} IN WALLET` : "UNDISCOVERED"}</span></div>
                 <div className="card-art">
                   <img src={rarity.image} alt={owned ? rarity.creature : ""} />
-                  {!owned && <div className="locked-art"><span>?</span><small>OPEN A PACK TO MEET</small></div>}
+                  {!owned && <div className="locked-art"><span>?</span><small>OPEN A BOX TO MEET</small></div>}
                   <span className="rarity-chip">{rarity.name}</span>
                 </div>
                 <div className="card-copy">
@@ -173,7 +176,7 @@ function App() {
       </section>
 
       {status && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
-      <footer><div className="brand"><span>M</span><strong>Mystery Club</strong></div><p>A class project on Ethereum Sepolia · Test assets have no monetary value</p></footer>
+      <footer><div className="brand"><span><i /><i /><i /><i /></span><strong>Mystery Club</strong></div><p>Built one colorful brick at a time · Preview mode</p></footer>
     </main>
   );
 }
