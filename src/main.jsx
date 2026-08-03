@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -16,6 +16,7 @@ function App() {
   const [cards] = useState(["0", "0", "0", "0"]);
   const [ownedPacks] = useState([]);
   const [status, setStatus] = useState("");
+  const [soundOn, setSoundOn] = useState(false);
   const quote = useMemo(() => {
     const tokenAmount = Number(amount);
     if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) return "Enter an amount";
@@ -31,6 +32,53 @@ function App() {
     setStatus(`${label} is ready for UI review. Contract integration will be added later.`);
   }
 
+  const playSound = useCallback((kind = "tap") => {
+    if (!soundOn && kind !== "enable") return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const context = new AudioCtx();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const notes = kind === "success" ? [523, 659] : kind === "enable" ? [440, 660] : [360];
+    oscillator.type = kind === "tap" ? "square" : "sine";
+    oscillator.frequency.setValueAtTime(notes[0], context.currentTime);
+    if (notes[1]) oscillator.frequency.exponentialRampToValueAtTime(notes[1], context.currentTime + 0.09);
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.055, context.currentTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.14);
+    oscillator.connect(gain); gain.connect(context.destination);
+    oscillator.start(); oscillator.stop(context.currentTime + 0.15);
+    oscillator.onended = () => context.close();
+  }, [soundOn]);
+
+  useEffect(() => {
+    const items = document.querySelectorAll(".reveal-on-scroll");
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    items.forEach((item) => observer.observe(item));
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleUiClick = (event) => {
+      if (event.target.closest("button:not(:disabled), a")) playSound("tap");
+    };
+    document.addEventListener("click", handleUiClick);
+    return () => document.removeEventListener("click", handleUiClick);
+  }, [playSound]);
+
+  function toggleSound() {
+    const next = !soundOn;
+    setSoundOn(next);
+    if (next) playSound("enable");
+  }
+
   return (
     <main>
       <nav className="site-nav">
@@ -42,6 +90,9 @@ function App() {
             <a href="#collection">Bricklings</a>
           </div>
           <div className="nav-actions">
+            <button className={`sound-toggle ${soundOn ? "is-on" : ""}`} onClick={toggleSound} aria-label={`${soundOn ? "Mute" : "Enable"} interface sounds`} aria-pressed={soundOn}>
+              <span className="speaker-icon"><i /><i /><i /></span>
+            </button>
             <button className={`wallet ${account ? "connected" : ""}`} onClick={connect}>
               {account ? "Preview connected" : "Connect wallet"}
             </button>
@@ -60,7 +111,7 @@ function App() {
         <div className="hero-stats"><span><strong>4</strong>CREATURES</span><span><strong>1</strong>MYSTERY BOX</span><span><strong>∞</strong>ADVENTURES</span></div>
       </header>
 
-      <section className="shop-section" id="shop">
+      <section className="shop-section reveal-on-scroll" id="shop">
           <div className="section-heading">
           <div><span>BUILD SHOP / 01</span><h2>Pick your mystery box</h2></div>
           <p>Grab some MYST bricks, then unlock one surprise creature.</p>
@@ -118,7 +169,7 @@ function App() {
         </div>
       </section>
 
-      <section className="inventory-section" id="my-packs">
+      <section className="inventory-section reveal-on-scroll" id="my-packs">
         <div className="section-heading">
           <div><span>BUILD BENCH / 02</span><h2>Your mystery boxes</h2></div>
           <p>Everything waiting to be opened lives on your workbench.</p>
@@ -149,7 +200,7 @@ function App() {
         )}
       </section>
 
-      <section className="collection" id="collection">
+      <section className="collection reveal-on-scroll" id="collection">
         <div className="section-heading">
           <div><span>BRICKLING CREW / 03</span><h2>Meet the whole crew</h2></div>
           <p>Four colorful builds. Can you discover every one?</p>
