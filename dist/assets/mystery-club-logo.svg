@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-labelledby="title desc">
+  <title id="title">Mystery Club</title>
+  <desc id="desc">An isometric purple mystery brick with gold studs and a question mark.</desc>
+  <path d="M8 20.5 35.7 7 64 20.8 36.2 35Z" fill="#9D83F0" stroke="#17233D" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M8 20.5 36.2 35v29L8 49.3Z" fill="#7657D9" stroke="#17233D" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M64 20.8 36.2 35v29L64 49.5Z" fill="#5239AD" stroke="#17233D" stroke-width="4" stroke-linejoin="round"/>
+  <g fill="#FFD528" stroke="#17233D" stroke-width="2.5">
+    <ellipse cx="23" cy="16" rx="6.8" ry="3.8"/>
+    <ellipse cx="42" cy="16" rx="6.8" ry="3.8"/>
+  </g>
+  <path d="M26.2 40.8c.5-6.1 4.1-9.4 10.2-9.4 6 0 10 3.5 10 8.5 0 4.2-2.2 6.3-5.8 8.3-2.5 1.4-3.3 2.4-3.3 4.7v.8" fill="none" stroke="#FFD528" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="37.2" cy="59" r="3.2" fill="#FFD528"/>
+  <path d="m53 31 5-2.6v17L53 48Z" fill="#6E53D0" opacity=".72"/>
+</svg>

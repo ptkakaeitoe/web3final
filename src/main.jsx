@@ -161,6 +161,7 @@ function App() {
   }
 
   const collectionEntries = rarities.map((rarity, id) => ({ rarity, id, owned: Number(cards[id]) > 0 }));
+  const sealedPacks = ownedPacks.filter((pack) => !pack.opened);
 
   function renderCreatureCard({ rarity, id, owned }) {
     return (
@@ -183,7 +184,7 @@ function App() {
     <main>
       <nav className="site-nav">
         <div className="nav-inner">
-          <a className="brand" href="#"><span><i /><i /><i /><i /></span><strong>Mystery Club</strong></a>
+          <a className="brand" href="#"><img className="brand-logo" src="/assets/mystery-club-logo.svg" alt="" /><strong>Mystery Club</strong></a>
           <div className="nav-menu">
             <a href="#shop">Build shop</a>
             <a href="#my-packs">My boxes</a>
@@ -278,24 +279,19 @@ function App() {
           <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>Connect to see your boxes</h3><p>Your sealed and revealed mystery boxes will appear here.</p></div><button onClick={connect}>Connect wallet</button></div>
         ) : ownedPacks.length === 0 ? (
           <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>No boxes yet</h3><p>Pick up your first Mystery Box from the shop above.</p></div><a href="#shop">Go to build shop</a></div>
+        ) : sealedPacks.length === 0 ? (
+          <div className="inventory-empty"><div className="mini-pack">✓</div><div><h3>Your build bench is clear</h3><p>Every purchased box has been revealed and added to your collection.</p></div><a href="#shop">Buy another box</a></div>
         ) : (
           <div className="inventory-grid">
-            {ownedPacks.map((pack) => {
-              const remaining = 0;
-              return (
-                <article className={`owned-pack ${pack.opened ? "opened" : ""}`} key={pack.id}>
-                  <div className="owned-pack-art"><span>{pack.opened ? "✓" : "?"}</span></div>
-                  <div className="owned-pack-copy">
-                    <small>MYSTERY BOX #{pack.id} · {pack.paidWith}</small>
-                    <h3>{pack.opened ? `${rarities[pack.rarityId].creature} revealed` : remaining ? "Getting ready…" : "Ready to reveal"}</h3>
-                    <p>{pack.opened ? "This Brickling has joined your collection." : remaining ? `${remaining} block${remaining > 1 ? "s" : ""} remaining.` : "Your surprise Brickling is ready inside."}</p>
-                  </div>
-                  {!pack.opened && (
-                    <button disabled={remaining > 0} onClick={() => revealPreviewBox(pack.id)}>{remaining ? "Waiting" : "Reveal box"} <span>→</span></button>
-                  )}
-                </article>
-              );
-            })}
+            <article className="owned-pack box-stack-card">
+              <div className="owned-pack-art box-stack-art"><i /><i /><span>?</span><b>×{sealedPacks.length}</b></div>
+              <div className="owned-pack-copy">
+                <small>SEALED MYSTERY BOXES</small>
+                <h3>{sealedPacks.length} box{sealedPacks.length > 1 ? "es" : ""} ready to reveal</h3>
+                <p>Open the next box in your stack to discover a Brickling and collect its MYST reward.</p>
+              </div>
+              <button onClick={() => revealPreviewBox(sealedPacks[0].id)}>Reveal next box <span>→</span></button>
+            </article>
           </div>
         )}
       </section>
@@ -356,7 +352,7 @@ function App() {
         </div>
       )}
       {status && !celebration && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
-      <footer><div className="brand"><span><i /><i /><i /><i /></span><strong>Mystery Club</strong></div><p>Built one colorful brick at a time · Preview mode</p></footer>
+      <footer><div className="brand"><img className="brand-logo" src="/assets/mystery-club-logo.svg" alt="" /><strong>Mystery Club</strong></div><p>Built one colorful brick at a time · Preview mode</p></footer>
     </main>
   );
 }
