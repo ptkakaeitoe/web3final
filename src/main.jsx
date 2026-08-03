@@ -11,12 +11,14 @@ const rarities = [
 
 function App() {
   const [account, setAccount] = useState(false);
+  const [balance, setBalance] = useState(2450);
   const [amount, setAmount] = useState("1000");
   const [mode, setMode] = useState("buy");
-  const [cards] = useState(["0", "0", "0", "0"]);
-  const [ownedPacks] = useState([]);
+  const [cards, setCards] = useState(["0", "0", "0", "0"]);
+  const [ownedPacks, setOwnedPacks] = useState([]);
   const [status, setStatus] = useState("");
-  const [soundOn, setSoundOn] = useState(false);
+  const [celebration, setCelebration] = useState(null);
+  const [soundOn, setSoundOn] = useState(true);
   const quote = useMemo(() => {
     const tokenAmount = Number(amount);
     if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) return "Enter an amount";
@@ -28,8 +30,21 @@ function App() {
     setStatus("Preview wallet connected. On-chain actions are paused during the UI redesign.");
   }
 
-  function previewAction(label) {
-    setStatus(`${label} is ready for UI review. Contract integration will be added later.`);
+  function previewTrade() {
+    const tokenAmount = Number(amount);
+    if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) {
+      setStatus("Enter a valid MYST amount greater than zero.");
+      return;
+    }
+    if (mode === "sell" && tokenAmount > balance) {
+      setStatus(`You only have ${balance.toLocaleString()} MYST available to sell.`);
+      return;
+    }
+    const nextBalance = mode === "buy" ? balance + tokenAmount : balance - tokenAmount;
+    setBalance(nextBalance);
+    setStatus(`${mode === "buy" ? "Bought" : "Sold"} ${tokenAmount.toLocaleString()} MYST for ${(tokenAmount * 0.000001).toFixed(6)} ETH. Preview balance updated.`);
+    setCelebration({ type: "trade", mode, amount: tokenAmount, eth: (tokenAmount * 0.000001).toFixed(6) });
+    playSound("success");
   }
 
   const playSound = useCallback((kind = "tap") => {
@@ -49,6 +64,41 @@ function App() {
     oscillator.connect(gain); gain.connect(context.destination);
     oscillator.start(); oscillator.stop(context.currentTime + 0.15);
     oscillator.onended = () => context.close();
+  }, [soundOn]);
+
+  const playRevealSound = useCallback(() => {
+    if (!soundOn) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const context = new AudioCtx();
+    const master = context.createGain();
+    master.gain.setValueAtTime(0.7, context.currentTime);
+    master.connect(context.destination);
+
+    const build = context.createOscillator();
+    const buildGain = context.createGain();
+    build.type = "triangle";
+    build.frequency.setValueAtTime(95, context.currentTime);
+    build.frequency.exponentialRampToValueAtTime(280, context.currentTime + 0.85);
+    buildGain.gain.setValueAtTime(0.0001, context.currentTime);
+    buildGain.gain.exponentialRampToValueAtTime(0.045, context.currentTime + 0.12);
+    buildGain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.9);
+    build.connect(buildGain); buildGain.connect(master);
+    build.start(); build.stop(context.currentTime + 0.92);
+
+    [523, 659, 784, 1046].forEach((frequency, index) => {
+      const tone = context.createOscillator();
+      const toneGain = context.createGain();
+      const start = context.currentTime + 0.78 + index * 0.09;
+      tone.type = index === 3 ? "sine" : "triangle";
+      tone.frequency.setValueAtTime(frequency, start);
+      toneGain.gain.setValueAtTime(0.0001, start);
+      toneGain.gain.exponentialRampToValueAtTime(index === 3 ? 0.13 : 0.075, start + 0.025);
+      toneGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.48);
+      tone.connect(toneGain); toneGain.connect(master);
+      tone.start(start); tone.stop(start + 0.5);
+    });
+    window.setTimeout(() => context.close(), 1600);
   }, [soundOn]);
 
   useEffect(() => {
@@ -77,6 +127,56 @@ function App() {
     const next = !soundOn;
     setSoundOn(next);
     if (next) playSound("enable");
+  }
+
+  function buyPreviewBox(currency) {
+    if (currency === "MYST" && balance < 1000) {
+      setStatus("You need 1,000 MYST to buy this box. Buy more MYST first.");
+      return;
+    }
+    if (currency === "MYST") setBalance((current) => current - 1000);
+    const nextId = ownedPacks.reduce((highest, pack) => Math.max(highest, Number(pack.id)), 0) + 1;
+    setOwnedPacks((current) => [{ id: String(nextId), opened: false, paidWith: currency }, ...current]);
+    setStatus(`Mystery Box #${nextId} purchased with ${currency}. It is ready on your build bench.`);
+    setCelebration({ type: "box", id: nextId, currency });
+    playSound("success");
+  }
+
+  function revealPreviewBox(packId) {
+    const roll = Math.random() * 100;
+    const rarityId = roll < 70 ? 0 : roll < 90 ? 1 : roll < 99 ? 2 : 3;
+    const rarity = rarities[rarityId];
+    setOwnedPacks((current) => current.map((pack) => pack.id === packId ? { ...pack, opened: true, rarityId } : pack));
+    setCards((current) => current.map((count, id) => id === rarityId ? String(Number(count) + 1) : count));
+    setBalance((current) => current + rarity.reward);
+    setStatus(`Box #${packId} revealed ${rarity.creature} — ${rarity.name}! You received ${rarity.reward} MYST.`);
+    setCelebration({ type: "reveal", packId, rarityId, rarity });
+    playRevealSound();
+  }
+
+  function closeCelebration(targetSection) {
+    setCelebration(null);
+    setStatus("");
+    if (targetSection) window.setTimeout(() => document.querySelector(targetSection)?.scrollIntoView({ behavior: "smooth" }), 50);
+  }
+
+  const collectionEntries = rarities.map((rarity, id) => ({ rarity, id, owned: Number(cards[id]) > 0 }));
+
+  function renderCreatureCard({ rarity, id, owned }) {
+    return (
+      <div className={`nft-card ${rarity.className} ${owned ? "is-owned" : "not-owned"}`} key={rarity.name}>
+        <div className="card-meta"><span>MC—0{id + 1}</span><span>{owned ? `${cards[id]} IN WALLET` : "UNDISCOVERED"}</span></div>
+        <div className="card-art">
+          <img src={rarity.image} alt={owned ? rarity.creature : ""} />
+          {!owned && <div className="locked-art"><span>?</span><small>OPEN A BOX TO MEET</small></div>}
+          <span className="rarity-chip">{rarity.name}</span>
+        </div>
+        <div className="card-copy">
+          <div><small>CREATURE</small><h3>{owned ? rarity.creature : "Unknown creature"}</h3></div>
+          <strong>+{rarity.reward}<small>MYST REWARD</small></strong>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -125,7 +225,7 @@ function App() {
             </div>
             <div className="trade-balance">
               <span>Wallet balance</span>
-              <strong>{account ? "2,450 MYST" : "Not connected"}</strong>
+              <strong>{account ? `${balance.toLocaleString()} MYST` : "Not connected"}</strong>
             </div>
             <div className="toggle">
               <button className={mode === "buy" ? "active" : ""} onClick={() => setMode("buy")}>Buy</button>
@@ -134,7 +234,7 @@ function App() {
             <label>How many tokens?</label>
             <div className="input"><input inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} /><span>MYST</span></div>
             <div className="quote"><span>You {mode === "buy" ? "pay" : "receive"}</span><strong>{quote || "—"}</strong></div>
-            <button className="primary" disabled={!account} onClick={() => previewAction(`${mode === "buy" ? "Buy" : "Sell"} MYST`)}>
+            <button className="primary" disabled={!account} onClick={previewTrade}>
               {account ? `${mode === "buy" ? "Buy" : "Sell"} MYST` : "Connect wallet first"} <span>→</span>
             </button>
           </article>
@@ -157,10 +257,10 @@ function App() {
                 <span><i className="epic" />9% Epic</span><span><i className="legendary" />1% Legendary</span>
               </div>
               <div className="pay-options">
-                <button disabled={!account} onClick={() => previewAction("Buy with MYST")}>
+                <button disabled={!account} onClick={() => buyPreviewBox("MYST")}>
                   <span><small>PAY WITH MYST</small><strong>1,000 MYST</strong></span><b>BEST VALUE</b>
                 </button>
-                <button disabled={!account} onClick={() => previewAction("Buy with ETH")}>
+                <button disabled={!account} onClick={() => buyPreviewBox("ETH")}>
                   <span><small>PAY WITH ETH</small><strong>0.002 ETH</strong></span><i>→</i>
                 </button>
               </div>
@@ -186,12 +286,12 @@ function App() {
                 <article className={`owned-pack ${pack.opened ? "opened" : ""}`} key={pack.id}>
                   <div className="owned-pack-art"><span>{pack.opened ? "✓" : "?"}</span></div>
                   <div className="owned-pack-copy">
-                    <small>WONDER PACK #{pack.id}</small>
-                    <h3>{pack.opened ? "Pack revealed" : remaining ? "Getting ready…" : "Ready to reveal"}</h3>
-                    <p>{pack.opened ? "This pack has already joined your collection." : remaining ? `${remaining} Sepolia block${remaining > 1 ? "s" : ""} remaining.` : "Your creature card is ready inside."}</p>
+                    <small>MYSTERY BOX #{pack.id} · {pack.paidWith}</small>
+                    <h3>{pack.opened ? `${rarities[pack.rarityId].creature} revealed` : remaining ? "Getting ready…" : "Ready to reveal"}</h3>
+                    <p>{pack.opened ? "This Brickling has joined your collection." : remaining ? `${remaining} block${remaining > 1 ? "s" : ""} remaining.` : "Your surprise Brickling is ready inside."}</p>
                   </div>
                   {!pack.opened && (
-                    <button disabled={remaining > 0} onClick={() => previewAction("Reveal pack")}>{remaining ? "Waiting" : "Reveal pack"} <span>→</span></button>
+                    <button disabled={remaining > 0} onClick={() => revealPreviewBox(pack.id)}>{remaining ? "Waiting" : "Reveal box"} <span>→</span></button>
                   )}
                 </article>
               );
@@ -205,28 +305,57 @@ function App() {
           <div><span>BRICKLING CREW / 03</span><h2>Meet the whole crew</h2></div>
           <p>Four colorful builds. Can you discover every one?</p>
         </div>
-        <div className="card-row">
-          {rarities.map((rarity, id) => {
-            const owned = Number(cards[id]) > 0;
-            return (
-              <div className={`nft-card ${rarity.className} ${owned ? "is-owned" : "not-owned"}`} key={rarity.name}>
-                <div className="card-meta"><span>MC—0{id + 1}</span><span>{owned ? `${cards[id]} IN WALLET` : "UNDISCOVERED"}</span></div>
-                <div className="card-art">
-                  <img src={rarity.image} alt={owned ? rarity.creature : ""} />
-                  {!owned && <div className="locked-art"><span>?</span><small>OPEN A BOX TO MEET</small></div>}
-                  <span className="rarity-chip">{rarity.name}</span>
-                </div>
-                <div className="card-copy">
-                  <div><small>CREATURE</small><h3>{owned ? rarity.creature : "Unknown creature"}</h3></div>
-                  <strong>+{rarity.reward}<small>MYST REWARD</small></strong>
-                </div>
-              </div>
-            );
-          })}
+        {collectionEntries.some((entry) => entry.owned) && (
+          <div className="collection-group owned-group">
+            <div className="collection-group-heading"><div><span>✓</span><strong>Your Bricklings</strong></div><small>{collectionEntries.filter((entry) => entry.owned).length} OF {rarities.length} DISCOVERED</small></div>
+            <div className="card-row owned-row">{collectionEntries.filter((entry) => entry.owned).map(renderCreatureCard)}</div>
+          </div>
+        )}
+        <div className="collection-group locked-group">
+          <div className="collection-group-heading"><div><span>?</span><strong>Still to discover</strong></div><small>{collectionEntries.filter((entry) => !entry.owned).length} REMAINING</small></div>
+          {collectionEntries.some((entry) => !entry.owned) ? (
+            <div className="card-row locked-row">{collectionEntries.filter((entry) => !entry.owned).map(renderCreatureCard)}</div>
+          ) : <div className="collection-complete">You found every Brickling. Collection complete!</div>}
         </div>
       </section>
 
-      {status && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
+      {celebration && (
+        <div className="celebration-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeCelebration()}>
+          <div className={`celebration-modal celebration-type-${celebration.type}`} role="dialog" aria-modal="true" aria-labelledby="celebration-title">
+            <div className="confetti" aria-hidden="true">{Array.from({ length: 14 }, (_, id) => <i key={id} />)}</div>
+            <button className="celebration-close" onClick={() => closeCelebration()} aria-label="Close celebration">×</button>
+            {celebration.type === "trade" && <>
+              <div className="success-build"><span>M</span><i /><i /><i /></div>
+              <small>PREVIEW TRADE COMPLETE</small>
+              <h2 id="celebration-title">MYST {celebration.mode === "buy" ? "added" : "sold"}!</h2>
+              <p><strong>{celebration.amount.toLocaleString()} MYST</strong><span>{celebration.mode === "buy" ? "Cost" : "Received"} {celebration.eth} ETH</span></p>
+              <button className="celebration-primary" onClick={() => closeCelebration()}>Back to the shop</button>
+            </>}
+            {celebration.type === "box" && <>
+              <div className="celebration-box"><span>?</span></div>
+              <small>MYSTERY BOX #{celebration.id}</small>
+              <h2 id="celebration-title">Box secured!</h2>
+              <p>Purchased with {celebration.currency}. Your surprise Brickling is waiting on the build bench.</p>
+              <button className="celebration-primary" onClick={() => closeCelebration("#my-packs")}>Go reveal it <span>→</span></button>
+            </>}
+            {celebration.type === "reveal" && <>
+              <div className={`reveal-stage reveal-${celebration.rarity.className}`}>
+                <div className="reveal-rays" aria-hidden="true" />
+                <div className="reveal-sparks" aria-hidden="true">{Array.from({ length: 10 }, (_, id) => <i key={id} />)}</div>
+                <div className={`reveal-card reveal-${celebration.rarity.className}`}>
+                  <img src={celebration.rarity.image} alt={celebration.rarity.creature} />
+                  <b>{celebration.rarity.name}</b>
+                </div>
+              </div>
+              <small>YOU FOUND A {celebration.rarity.name.toUpperCase()} BRICKLING</small>
+              <h2 id="celebration-title">{celebration.rarity.creature}!</h2>
+              <p><strong>+{celebration.rarity.reward} MYST</strong><span>Reward added to your preview balance</span></p>
+              <button className="celebration-primary" onClick={() => closeCelebration("#collection")}>View collection <span>→</span></button>
+            </>}
+          </div>
+        </div>
+      )}
+      {status && !celebration && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
       <footer><div className="brand"><span><i /><i /><i /><i /></span><strong>Mystery Club</strong></div><p>Built one colorful brick at a time · Preview mode</p></footer>
     </main>
   );
