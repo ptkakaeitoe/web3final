@@ -200,6 +200,19 @@ footer { border-top-width:2px; }
 @media(max-width:540px){.celebration-modal{min-height:440px;padding:36px 24px 28px}.celebration-modal h2{font-size:34px}.reveal-stage{width:220px;height:220px}.reveal-card{width:205px}.celebration-box{width:160px;height:192px;font-size:82px}.owned-pack{padding:18px;grid-template-columns:92px 1fr;gap:16px}.owned-pack-art{width:82px;height:102px;font-size:34px;box-shadow:5px 5px 0 var(--ink)}.owned-pack-copy h3{font-size:20px}.owned-pack>button{grid-column:1/-1;width:100%}}
 @media(prefers-reduced-motion:reduce){.celebration-backdrop,.celebration-modal,.success-build,.celebration-box,.reveal-card,.reveal-rays,.reveal-sparks i,.celebration-type-reveal>small,.celebration-type-reveal>h2,.celebration-type-reveal>p,.celebration-type-reveal>.celebration-primary,.confetti i{animation:none}.confetti,.reveal-sparks,.reveal-rays{display:none}}
 
+.connect-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:#10182cbd;backdrop-filter:blur(7px);animation:backdrop-in .2s ease both}
+.connect-modal{position:relative;width:min(460px,100%);padding:38px;border:2px solid var(--ink);border-radius:20px;background:#fffdf6;box-shadow:10px 10px 0 #0c1426;text-align:center;animation:modal-build .4s cubic-bezier(.18,.9,.28,1.12) both}
+.connect-close{position:absolute;top:13px;right:15px;width:34px;height:34px;border:0;background:transparent;color:var(--ink);font-size:27px;cursor:pointer}
+.connect-kicker{color:var(--blue-dark);font-size:9px;font-weight:900;letter-spacing:.14em}
+.connect-modal h2{margin:8px 0 10px;font-family:"Bricolage Grotesque",Inter,Arial,sans-serif;font-size:34px;line-height:1.05;letter-spacing:-.035em}
+.connect-modal>p{margin:0 auto 24px;max-width:340px;color:#526077;font-size:12px;line-height:1.55}
+.connect-choice{width:100%;margin-top:12px;padding:17px 18px;display:flex;align-items:center;justify-content:space-between;border:2px solid var(--ink);border-radius:11px;box-shadow:0 4px 0 var(--ink);text-align:left;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.connect-choice:hover:not(:disabled){transform:translateY(2px);box-shadow:0 2px 0 var(--ink)}
+.connect-choice span{display:flex;flex-direction:column;gap:3px}.connect-choice strong{font-size:15px}.connect-choice small{font-size:10px;font-weight:700;opacity:.72}.connect-choice b{font-size:20px}
+.live-choice{background:var(--blue);color:#fff}.preview-choice{background:#f1ecff;color:var(--ink)}
+.connect-choice:disabled{opacity:.55;cursor:wait}
+@media(max-width:540px){.connect-modal{padding:34px 22px 26px}.connect-modal h2{font-size:29px}}
+
 /* Mobile composition: fewer nested boxes and more deliberate breathing room. */
 @media(max-width:760px){
   body{background-size:28px 28px}

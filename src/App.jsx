@@ -1,10 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import Brand from "./components/Brand";
+import { cardsAbi, curveAbi, packAbi, tokenAbi } from "./abis";
 import { rarities } from "./data/rarities";
+import deployment from "../deployments/sepolia.json";
 import "./styles.css";
 
+const SEPOLIA_HEX_CHAIN_ID = "0xaa36a7";
+
+function readableError(error) {
+  return error?.reason || error?.shortMessage || error?.info?.error?.message || error?.message || "Transaction failed.";
+}
+
 export default function App() {
-  const [account, setAccount] = useState(false);
+  const [account, setAccount] = useState("");
+  const [connectionMode, setConnectionMode] = useState(null);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [balance, setBalance] = useState(2450);
   const [amount, setAmount] = useState("1000");
   const [boxQuantity, setBoxQuantity] = useState(1);
@@ -14,7 +26,8 @@ export default function App() {
   const [status, setStatus] = useState("");
   const [celebration, setCelebration] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
-  const quote = useMemo(() => {
+  const [liveQuote, setLiveQuote] = useState("");
+  const previewQuote = useMemo(() => {
     const tokenAmount = Number(amount);
     if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) return "Enter an amount";
     return `${(tokenAmount * 0.000001).toFixed(6)} ETH`;
@@ -24,25 +37,107 @@ export default function App() {
   const mystDiscount = Math.round((1 - mystBundleEthValue / ethBundleCost) * 100);
 
   function connect() {
-    setAccount(true);
-    setStatus("Preview wallet connected. On-chain actions are paused during the UI redesign.");
+    setConnectOpen(true);
   }
 
-  function previewTrade() {
+  function connectPreview() {
+    setConnectionMode("preview");
+    setAccount("preview");
+    setBalance(2450);
+    setOwnedPacks([]);
+    setCards(["0", "0", "0", "0"]);
+    setConnectOpen(false);
+    setStatus("Preview mode enabled. Actions are simulated locally and do not use Sepolia.");
+  }
+
+  async function getLiveContracts(requestAccounts = false) {
+    if (!window.ethereum) throw new Error("No EVM wallet detected. Install or enable a wallet extension, or use Preview mode.");
+    const provider = new BrowserProvider(window.ethereum);
+    if (requestAccounts) await provider.send("eth_requestAccounts", []);
+    const network = await provider.getNetwork();
+    if (Number(network.chainId) !== deployment.chainId) {
+      await provider.send("wallet_switchEthereumChain", [{ chainId: SEPOLIA_HEX_CHAIN_ID }]);
+    }
+    const signer = await provider.getSigner();
+    return {
+      provider,
+      signer,
+      address: await signer.getAddress(),
+      token: new Contract(deployment.token, tokenAbi, signer),
+      curve: new Contract(deployment.bondingCurve, curveAbi, signer),
+      pack: new Contract(deployment.mysteryPack, packAbi, signer),
+      cardsContract: new Contract(deployment.cardNFT, cardsAbi, signer),
+    };
+  }
+
+  async function refreshLiveState() {
+    const { address, token, pack, cardsContract } = await getLiveContracts();
+    const [tokenBalance, nextPackId, ...cardBalances] = await Promise.all([
+      token.balanceOf(address),
+      pack.nextPackId(),
+      ...rarities.map((_, id) => cardsContract.balanceOf(address, id)),
+    ]);
+    const packRows = await Promise.all(Array.from({ length: Number(nextPackId) }, async (_, id) => {
+      const row = await pack.packs(id);
+      return row.owner.toLowerCase() === address.toLowerCase() ? { id: String(id), opened: row.opened } : null;
+    }));
+    setAccount(address);
+    setBalance(Number(formatEther(tokenBalance)));
+    setCards(cardBalances.map((value) => value.toString()));
+    setOwnedPacks(packRows.filter(Boolean).reverse());
+  }
+
+  async function connectLive() {
+    setBusy(true);
+    try {
+      const { address } = await getLiveContracts(true);
+      setConnectionMode("live");
+      setAccount(address);
+      setConnectOpen(false);
+      await refreshLiveState();
+      setStatus("Wallet connected to Mystery Club on Sepolia.");
+    } catch (error) {
+      setStatus(readableError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function trade() {
     const tokenAmount = Number(amount);
-    if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) {
-      setStatus("Enter a valid MYST amount greater than zero.");
+    if (!Number.isSafeInteger(tokenAmount) || tokenAmount <= 0) {
+      setStatus("Enter a whole MYST amount greater than zero.");
       return;
     }
     if (mode === "sell" && tokenAmount > balance) {
       setStatus(`You only have ${balance.toLocaleString()} MYST available to sell.`);
       return;
     }
-    const nextBalance = mode === "buy" ? balance + tokenAmount : balance - tokenAmount;
-    setBalance(nextBalance);
-    setStatus(`${mode === "buy" ? "Bought" : "Sold"} ${tokenAmount.toLocaleString()} MYST for ${(tokenAmount * 0.000001).toFixed(6)} ETH. Preview balance updated.`);
-    setCelebration({ type: "trade", mode, amount: tokenAmount, eth: (tokenAmount * 0.000001).toFixed(6) });
-    playSound("success");
+    if (connectionMode === "preview") {
+      const nextBalance = mode === "buy" ? balance + tokenAmount : balance - tokenAmount;
+      setBalance(nextBalance);
+      setCelebration({ type: "trade", mode, amount: tokenAmount, eth: previewQuote.replace(" ETH", ""), preview: true });
+      playSound("success");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { curve } = await getLiveContracts();
+      const value = parseEther(String(tokenAmount));
+      const quoted = mode === "buy" ? await curve.quoteBuy(value) : await curve.quoteSell(value);
+      const transaction = mode === "buy"
+        ? await curve.buy(value, quoted, { value: quoted })
+        : await curve.sell(value, quoted);
+      setStatus("Transaction submitted. Waiting for Sepolia confirmation…");
+      await transaction.wait();
+      await refreshLiveState();
+      setCelebration({ type: "trade", mode, amount: tokenAmount, eth: formatEther(quoted), preview: false });
+      playSound("success");
+    } catch (error) {
+      setStatus(readableError(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const playSound = useCallback((kind = "tap") => {
@@ -127,13 +222,76 @@ export default function App() {
     return () => window.clearTimeout(timeout);
   }, [status, celebration]);
 
+  useEffect(() => {
+    if (connectionMode !== "live" || !Number.isSafeInteger(Number(amount)) || Number(amount) <= 0) {
+      setLiveQuote("");
+      return undefined;
+    }
+    let cancelled = false;
+    const updateQuote = async () => {
+      try {
+        const { curve } = await getLiveContracts();
+        const value = parseEther(amount);
+        const result = mode === "buy" ? await curve.quoteBuy(value) : await curve.quoteSell(value);
+        if (!cancelled) setLiveQuote(`${formatEther(result)} ETH`);
+      } catch {
+        if (!cancelled) setLiveQuote("Quote unavailable");
+      }
+    };
+    updateQuote();
+    return () => { cancelled = true; };
+  }, [amount, mode, connectionMode]);
+
+  useEffect(() => {
+    if (connectionMode !== "live" || !window.ethereum?.on) return undefined;
+    const resetConnection = () => {
+      setAccount("");
+      setConnectionMode(null);
+      setStatus("Wallet account or network changed. Please reconnect.");
+    };
+    window.ethereum.on("accountsChanged", resetConnection);
+    window.ethereum.on("chainChanged", resetConnection);
+    return () => {
+      window.ethereum.removeListener?.("accountsChanged", resetConnection);
+      window.ethereum.removeListener?.("chainChanged", resetConnection);
+    };
+  }, [connectionMode]);
+
   function toggleSound() {
     const next = !soundOn;
     setSoundOn(next);
     if (next) playSound("enable");
   }
 
-  function buyPreviewBox(currency) {
+  async function buyBox(currency) {
+    if (connectionMode === "live") {
+      setBusy(true);
+      try {
+        const { token, pack } = await getLiveContracts();
+        for (let index = 0; index < boxQuantity; index += 1) {
+          if (currency === "MYST") {
+            const price = await pack.TOKEN_PRICE();
+            const allowance = await token.allowance(account, deployment.mysteryPack);
+            if (allowance < price) {
+              setStatus("Approve MYST spending in your wallet, then confirm the box purchase.");
+              await (await token.approve(deployment.mysteryPack, price)).wait();
+            }
+            await (await pack.buyWithToken()).wait();
+          } else {
+            const price = await pack.ETH_PRICE();
+            await (await pack.buyWithEth({ value: price })).wait();
+          }
+        }
+        await refreshLiveState();
+        setCelebration({ type: "box", quantity: boxQuantity, currency, live: true });
+        playSound("success");
+      } catch (error) {
+        setStatus(readableError(error));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const mystCost = boxQuantity * 1000;
     if (currency === "MYST" && balance < mystCost) {
       setStatus(`You need ${mystCost.toLocaleString()} MYST to buy ${boxQuantity} box${boxQuantity > 1 ? "es" : ""}. Buy more MYST first.`);
@@ -148,7 +306,29 @@ export default function App() {
     playSound("success");
   }
 
-  function revealPreviewBox(packId) {
+  async function revealBox(packId) {
+    if (connectionMode === "live") {
+      setBusy(true);
+      try {
+        const { pack } = await getLiveContracts();
+        const transaction = await pack.openPack(packId);
+        setStatus("Reveal submitted. Waiting for Sepolia confirmation…");
+        const receipt = await transaction.wait();
+        const openedLog = receipt.logs.map((log) => {
+          try { return pack.interface.parseLog(log); } catch { return null; }
+        }).find((log) => log?.name === "PackOpened");
+        const rarityId = Number(openedLog?.args.rarity ?? 0);
+        const rarity = rarities[rarityId];
+        await refreshLiveState();
+        setCelebration({ type: "reveal", packId, rarityId, rarity, preview: false });
+        playRevealSound();
+      } catch (error) {
+        setStatus(readableError(error));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const roll = Math.random() * 100;
     const rarityId = roll < 70 ? 0 : roll < 90 ? 1 : roll < 99 ? 2 : 3;
     const rarity = rarities[rarityId];
@@ -156,7 +336,7 @@ export default function App() {
     setCards((current) => current.map((count, id) => id === rarityId ? String(Number(count) + 1) : count));
     setBalance((current) => current + rarity.reward);
     setStatus(`Box #${packId} revealed ${rarity.creature} — ${rarity.name}! You received ${rarity.reward} MYST.`);
-    setCelebration({ type: "reveal", packId, rarityId, rarity });
+    setCelebration({ type: "reveal", packId, rarityId, rarity, preview: true });
     playRevealSound();
   }
 
@@ -201,7 +381,7 @@ export default function App() {
               <span className="speaker-icon"><i /><i /><i /></span>
             </button>
             <button className={`wallet ${account ? "connected" : ""}`} onClick={connect}>
-              {account ? "Preview connected" : "Connect wallet"}
+              {account ? (connectionMode === "preview" ? "Preview mode" : `${account.slice(0, 6)}…${account.slice(-4)}`) : "Connect wallet"}
             </button>
           </div>
         </div>
@@ -240,9 +420,9 @@ export default function App() {
             </div>
             <label>How many tokens?</label>
             <div className="input"><input inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} /><span>MYST</span></div>
-            <div className="quote"><span>You {mode === "buy" ? "pay" : "receive"}</span><strong>{quote || "—"}</strong></div>
-            <button className="primary" disabled={!account} onClick={previewTrade}>
-              {account ? `${mode === "buy" ? "Buy" : "Sell"} MYST` : "Connect wallet first"} <span>→</span>
+            <div className="quote"><span>You {mode === "buy" ? "pay" : "receive"}</span><strong>{connectionMode === "live" ? (liveQuote || "Loading quote…") : previewQuote}</strong></div>
+            <button className="primary" disabled={!account || busy} onClick={trade}>
+              {busy ? "Waiting for wallet…" : account ? `${mode === "buy" ? "Buy" : "Sell"} MYST` : "Connect wallet first"} <span>→</span>
             </button>
           </article>
 
@@ -268,10 +448,10 @@ export default function App() {
                 <div className="quantity-options">{[1, 3, 5].map((quantity) => <button key={quantity} className={boxQuantity === quantity ? "active" : ""} onClick={() => setBoxQuantity(quantity)}>{quantity}<span>{quantity === 1 ? "BOX" : "BOXES"}</span></button>)}</div>
               </div>
               <div className="pay-options">
-                <button disabled={!account} onClick={() => buyPreviewBox("MYST")}>
+                <button disabled={!account || busy} onClick={() => buyBox("MYST")}>
                   <span><small>PAY WITH MYST · ≈ {mystBundleEthValue.toFixed(3)} ETH</small><strong>{(boxQuantity * 1000).toLocaleString()} MYST</strong><em>Save {(ethBundleCost - mystBundleEthValue).toFixed(3)} ETH</em></span><b>{mystDiscount}% CHEAPER</b>
                 </button>
-                <button disabled={!account} onClick={() => buyPreviewBox("ETH")}>
+                <button disabled={!account || busy} onClick={() => buyBox("ETH")}>
                   <span><small>PAY WITH ETH</small><strong>{(boxQuantity * 0.002).toFixed(3)} ETH</strong></span><i>→</i>
                 </button>
               </div>
@@ -300,7 +480,7 @@ export default function App() {
                 <h3>{sealedPacks.length} box{sealedPacks.length > 1 ? "es" : ""} ready to reveal</h3>
                 <p>Open the next box in your stack to discover a Brickling and collect its MYST reward.</p>
               </div>
-              <button onClick={() => revealPreviewBox(sealedPacks[0].id)}>Reveal next box <span>→</span></button>
+              <button disabled={busy} onClick={() => revealBox(sealedPacks[0].id)}>{busy ? "Waiting for wallet…" : "Reveal next box"} <span>→</span></button>
             </article>
           </div>
         )}
@@ -332,14 +512,14 @@ export default function App() {
             <button className="celebration-close" onClick={() => closeCelebration()} aria-label="Close celebration">×</button>
             {celebration.type === "trade" && <>
               <div className="success-build"><span>M</span><i /><i /><i /></div>
-              <small>PREVIEW TRADE COMPLETE</small>
+              <small>{celebration.preview ? "PREVIEW TRADE COMPLETE" : "SEPOLIA TRADE COMPLETE"}</small>
               <h2 id="celebration-title">MYST {celebration.mode === "buy" ? "added" : "sold"}!</h2>
               <p><strong>{celebration.amount.toLocaleString()} MYST</strong><span>{celebration.mode === "buy" ? "Cost" : "Received"} {celebration.eth} ETH</span></p>
               <button className="celebration-primary" onClick={() => closeCelebration()}>Back to the shop</button>
             </>}
             {celebration.type === "box" && <>
               <div className="celebration-box"><span>?</span>{celebration.quantity > 1 && <b>×{celebration.quantity}</b>}</div>
-              <small>{celebration.quantity > 1 ? `${celebration.quantity} BOX BUNDLE` : `MYSTERY BOX #${celebration.id}`}</small>
+              <small>{celebration.quantity > 1 ? `${celebration.quantity} BOX BUNDLE` : celebration.live ? "ON-CHAIN MYSTERY BOX" : `MYSTERY BOX #${celebration.id}`}</small>
               <h2 id="celebration-title">{celebration.quantity > 1 ? "Boxes secured!" : "Box secured!"}</h2>
               <p>Purchased {celebration.quantity} box{celebration.quantity > 1 ? "es" : ""} with {celebration.currency}. Your surprise Brickling{celebration.quantity > 1 ? "s are" : " is"} waiting on the build bench.</p>
               <button className="celebration-primary" onClick={() => closeCelebration("#my-packs")}>Go reveal it <span>→</span></button>
@@ -355,14 +535,30 @@ export default function App() {
               </div>
               <small>YOU FOUND A {celebration.rarity.name.toUpperCase()} BRICKLING</small>
               <h2 id="celebration-title">{celebration.rarity.creature}!</h2>
-              <p><strong>+{celebration.rarity.reward} MYST</strong><span>Reward added to your preview balance</span></p>
+              <p><strong>+{celebration.rarity.reward} MYST</strong><span>Reward added to your {celebration.preview ? "preview balance" : "wallet"}</span></p>
               <button className="celebration-primary" onClick={() => closeCelebration("#collection")}>View collection <span>→</span></button>
             </>}
           </div>
         </div>
       )}
+      {connectOpen && (
+        <div className="connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setConnectOpen(false)}>
+          <div className="connect-modal" role="dialog" aria-modal="true" aria-labelledby="connect-title">
+            <button className="connect-close" onClick={() => setConnectOpen(false)} aria-label="Close">×</button>
+            <span className="connect-kicker">CHOOSE HOW TO PLAY</span>
+            <h2 id="connect-title">Connect to Mystery Club</h2>
+            <p>Use the deployed Sepolia contracts, or explore safely with simulated balances.</p>
+            <button className="connect-choice live-choice" disabled={busy} onClick={connectLive}>
+              <span><strong>Connect wallet</strong><small>Live · Sepolia testnet</small></span><b>→</b>
+            </button>
+            <button className="connect-choice preview-choice" disabled={busy} onClick={connectPreview}>
+              <span><strong>Try preview mode</strong><small>Local simulation · no transactions</small></span><b>◇</b>
+            </button>
+          </div>
+        </div>
+      )}
       {status && !celebration && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
-      <footer><Brand /><p>Built one colorful brick at a time · Preview mode</p></footer>
+      <footer><Brand /><p>Built one colorful brick at a time · {connectionMode === "preview" ? "Preview mode" : "Live on Sepolia"}</p></footer>
     </main>
   );
 }

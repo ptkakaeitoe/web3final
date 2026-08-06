@@ -50,9 +50,10 @@ dedicated test wallet. Never use a wallet containing real funds.
 npm run deploy:sepolia
 ```
 
-The script writes deployment details to `deployments/sepolia.json`. The current
-frontend is intentionally running as a UI-only prototype; contract integration
-will be restored after the redesign is complete. Sepolia's chain ID is `11155111`.
+The script writes deployment details to `deployments/sepolia.json`. The frontend
+uses those addresses for live wallet transactions on Sepolia (chain ID `11155111`).
+The wallet connection dialog also offers a local Preview mode for exploring the
+interface without submitting transactions.
 
 ## Demo sequence
 
