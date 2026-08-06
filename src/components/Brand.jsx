@@ -1,3 +1,5 @@
+import React from "react";
+
 const content = (
   <>
     <img className="brand-logo" src="/assets/mystery-club-logo.svg" alt="" />
