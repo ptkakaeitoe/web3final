@@ -83,6 +83,18 @@ npm run deploy:features:sepolia
 This appends the two addresses to `deployments/sepolia.json` and enables the new
 frontend section.
 
+## Verify on Etherscan
+
+Add an Etherscan API key to `.env`. Keep `NFT_METADATA_BASE_URI` identical to
+the value used when the current contracts were deployed, then run:
+
+```bash
+npm run verify:sepolia
+```
+
+The command verifies every current address in `deployments/sepolia.json` and
+safely skips contracts that Etherscan has already verified.
+
 ## Demo sequence
 
 1. Buy at least 2,000 MYST using `BondingCurve.buy`.

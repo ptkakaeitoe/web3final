@@ -1,7 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-const { SEPOLIA_RPC_URL, PRIVATE_KEY } = process.env;
+const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
 const defaultSepoliaRpc = "https://ethereum-sepolia-rpc.publicnode.com";
 
 function getSepoliaRpcUrl() {
@@ -48,5 +48,8 @@ module.exports = {
       accounts: privateKey ? [privateKey] : [],
       chainId: 11155111,
     },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY || "",
   },
 };
