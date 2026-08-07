@@ -335,6 +335,23 @@ export default function App() {
     });
   }
 
+  function claimAllStakes() {
+    if (connectionMode === "preview") {
+      const reward = pendingRewards.reduce(
+        (total, value) => total + Number(value),
+        0
+      );
+      if (reward <= 0) return setStatus("No preview rewards to claim yet.");
+      setBalance((current) => current + reward);
+      setPendingRewards((current) => current.map(() => "0"));
+      setStatus(`${reward.toFixed(6)} MYST claimed in Preview mode.`);
+      return;
+    }
+    runFeature(async ({ staking }) => {
+      await (await staking.claimAll()).wait();
+    });
+  }
+
   function unstakeCard(tokenId) {
     if (connectionMode === "preview") {
       if (Number(stakedCards[tokenId]) < 1) return;
@@ -917,6 +934,7 @@ export default function App() {
         busy={busy}
         onStake={stakeCard}
         onClaim={claimStake}
+        onClaimAll={claimAllStakes}
         onUnstake={unstakeCard}
       />
       <AppOverlays

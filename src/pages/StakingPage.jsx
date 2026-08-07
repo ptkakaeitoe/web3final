@@ -12,8 +12,14 @@ export default function StakingPage({
   busy,
   onStake,
   onClaim,
+  onClaimAll,
   onUnstake,
 }) {
+  const totalPending = pendingRewards.reduce(
+    (sum, value) => sum + Number(value),
+    0
+  );
+
   return (
     <section
       className={`features-section staking-section app-page ${
@@ -44,12 +50,15 @@ export default function StakingPage({
         </div>
         <div>
           <small>CLAIMABLE NOW · LIVE</small>
-          <strong>
-            {pendingRewards
-              .reduce((sum, value) => sum + Number(value), 0)
-              .toFixed(6)}
-          </strong>
+          <strong>{totalPending.toFixed(6)}</strong>
           <span>MYST rewards</span>
+          <button
+            className="claim-all-action"
+            disabled={busy || totalPending <= 0}
+            onClick={onClaimAll}
+          >
+            Claim all
+          </button>
         </div>
       </div>
       <section className="reward-rate-panel">

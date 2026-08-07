@@ -44,5 +44,6 @@ export const stakingAbi = [
   "function pendingReward(address,uint256) view returns (uint256)",
   "function stake(uint256,uint256)",
   "function claim(uint256)",
+  "function claimAll()",
   "function unstake(uint256,uint256)",
 ];

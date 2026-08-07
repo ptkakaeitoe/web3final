@@ -51,6 +51,18 @@ contract NFTStaking is ERC1155Holder, ReentrancyGuard {
         if (reward == 0) revert NothingToClaim();
     }
 
+    /// @notice Claims rewards from every active rarity position in one transaction.
+    function claimAll() external nonReentrant {
+        uint256 totalReward;
+        for (uint256 tokenId; tokenId < 4; ++tokenId) {
+            Stake storage position = stakes[msg.sender][tokenId];
+            if (position.amount > 0) {
+                totalReward += _pay(msg.sender, tokenId, position);
+            }
+        }
+        if (totalReward == 0) revert NothingToClaim();
+    }
+
     function unstake(uint256 tokenId, uint256 amount) external nonReentrant {
         Stake storage position = stakes[msg.sender][tokenId];
         if (amount == 0 || position.amount < amount) revert InvalidStake();

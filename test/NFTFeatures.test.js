@@ -51,4 +51,27 @@ describe("NFT marketplace and staking", function () {
     expect(await cards.balanceOf(alice, 1)).to.equal(1);
     expect(await token.balanceOf(alice)).to.be.closeTo(ethers.parseEther("3"), ethers.parseEther("0.001"));
   });
+
+  it("claims rewards from all active staking positions at once", async function () {
+    const { alice, token, curve, cards, staking } = await deployFixture();
+    const funding = ethers.parseEther("100");
+    const cost = await curve.quoteBuy(funding);
+    await curve.buy(funding, cost, { value: cost });
+    await token.approve(staking, funding);
+    await staking.fundRewards(funding);
+
+    await cards.connect(alice).setApprovalForAll(staking, true);
+    await staking.connect(alice).stake(0, 1);
+    await staking.connect(alice).stake(1, 1);
+    await ethers.provider.send("evm_increaseTime", [24 * 60 * 60]);
+    await ethers.provider.send("evm_mine");
+
+    await staking.connect(alice).claimAll();
+    expect(await token.balanceOf(alice)).to.be.closeTo(
+      ethers.parseEther("4"),
+      ethers.parseEther("0.001")
+    );
+    expect(await staking.pendingReward(alice, 0)).to.be.closeTo(0, ethers.parseEther("0.001"));
+    expect(await staking.pendingReward(alice, 1)).to.be.closeTo(0, ethers.parseEther("0.001"));
+  });
 });
