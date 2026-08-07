@@ -5,6 +5,10 @@ const path = require("path");
 async function main() {
   const [deployer] = await ethers.getSigners();
   if (!deployer) throw new Error("No deployer configured");
+  const metadataBaseUri = process.env.NFT_METADATA_BASE_URI?.replace(/\/$/, "");
+  if (!metadataBaseUri || !/^(https:\/\/|ipfs:\/\/).+/.test(metadataBaseUri)) {
+    throw new Error("Set NFT_METADATA_BASE_URI to the public metadata directory before deployment");
+  }
 
   console.log(`Deploying to ${network.name} from ${deployer.address}`);
 
@@ -16,7 +20,7 @@ async function main() {
   await (await token.setMinter(curve)).wait();
 
   const cards = await (await ethers.getContractFactory("CardNFT")).deploy(
-    "ipfs://REPLACE_WITH_METADATA_CID/{id}.json"
+    `${metadataBaseUri}/{id}.json`
   );
   await cards.waitForDeployment();
 

@@ -7,6 +7,7 @@
     "test": "hardhat test",
     "dev": "vite",
     "build": "vite build",
+    "metadata:prepare": "node scripts/prepare-metadata.js",
     "deploy:local": "hardhat run scripts/deploy.js",
     "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "deploy:features:sepolia": "hardhat run scripts/deploy-features.js --network sepolia"

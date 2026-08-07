@@ -13,10 +13,12 @@ contract MysteryPack is Ownable, ReentrancyGuard {
 
     uint256 public constant TOKEN_PRICE = 1_000 ether;
     uint256 public constant ETH_PRICE = 0.002 ether;
+    uint256 public constant MAX_REWARD = 500 ether;
     IERC20 public immutable token;
     CardNFT public immutable cards;
     address public treasury;
     uint256 public nextPackId;
+    uint256 public unopenedPackCount;
 
     struct Pack {
         address owner;
@@ -30,14 +32,16 @@ contract MysteryPack is Ownable, ReentrancyGuard {
     error NotPackOwner();
     error AlreadyOpened();
     error RevealNotReady();
-    error RevealExpired();
     error InsufficientRewardPool();
     error InvalidRoll();
+    error InvalidTreasury();
 
     event PackPurchased(uint256 indexed packId, address indexed buyer, bool paidWithToken);
     event PackOpened(uint256 indexed packId, address indexed owner, uint256 rarity, uint256 reward);
+    event SurplusWithdrawn(address indexed treasury, uint256 amount);
 
     constructor(IERC20 token_, CardNFT cards_, address treasury_) Ownable(msg.sender) {
+        if (treasury_ == address(0)) revert InvalidTreasury();
         token = token_;
         cards = cards_;
         treasury = treasury_;
@@ -50,6 +54,9 @@ contract MysteryPack is Ownable, ReentrancyGuard {
 
     function buyWithEth() external payable {
         if (msg.value != ETH_PRICE) revert IncorrectPayment();
+        if (token.balanceOf(address(this)) < rewardReserve() + MAX_REWARD) {
+            revert InsufficientRewardPool();
+        }
         (bool ok,) = payable(treasury).call{value: msg.value}("");
         if (!ok) revert IncorrectPayment();
         _createPack(msg.sender, false);
@@ -61,16 +68,27 @@ contract MysteryPack is Ownable, ReentrancyGuard {
         if (pack.opened) revert AlreadyOpened();
         uint256 randomnessBlock = uint256(pack.purchaseBlock) + 1;
         if (block.number <= randomnessBlock) revert RevealNotReady();
-        if (block.number >= randomnessBlock + 256) revert RevealExpired();
+
+        bytes32 entropy = blockhash(randomnessBlock);
+        // Old block hashes become unavailable after 256 blocks. Use recent
+        // chain entropy as a recovery path so a paid pack can never get stuck.
+        if (entropy == bytes32(0)) {
+            entropy = keccak256(abi.encodePacked(
+                block.prevrandao,
+                blockhash(block.number - 1),
+                pack.purchaseBlock
+            ));
+        }
 
         pack.opened = true;
         uint256 roll = uint256(keccak256(abi.encodePacked(
-            blockhash(randomnessBlock), packId, pack.owner, address(this)
+            entropy, packId, pack.owner, address(this)
         ))) % 10_000;
         uint256 rarity = rarityForRoll(roll);
         uint256 reward = cards.tokenReward(rarity);
         if (token.balanceOf(address(this)) < reward) revert InsufficientRewardPool();
 
+        unopenedPackCount -= 1;
         cards.mint(msg.sender, rarity);
         token.safeTransfer(msg.sender, reward);
         emit PackOpened(packId, msg.sender, rarity, reward);
@@ -80,7 +98,26 @@ contract MysteryPack is Ownable, ReentrancyGuard {
         token.safeTransferFrom(msg.sender, address(this), amount);
     }
 
+    function rewardReserve() public view returns (uint256) {
+        return unopenedPackCount * MAX_REWARD;
+    }
+
+    function withdrawableSurplus() public view returns (uint256) {
+        uint256 balance = token.balanceOf(address(this));
+        uint256 reserve = rewardReserve();
+        return balance > reserve ? balance - reserve : 0;
+    }
+
+    function withdrawSurplus(uint256 amount) external onlyOwner {
+        if (amount == 0 || amount > withdrawableSurplus()) {
+            revert InsufficientRewardPool();
+        }
+        token.safeTransfer(treasury, amount);
+        emit SurplusWithdrawn(treasury, amount);
+    }
+
     function setTreasury(address newTreasury) external onlyOwner {
+        if (newTreasury == address(0)) revert InvalidTreasury();
         treasury = newTreasury;
     }
 
@@ -92,6 +129,7 @@ contract MysteryPack is Ownable, ReentrancyGuard {
 
     function _createPack(address buyer, bool paidWithToken) private {
         uint256 packId = nextPackId++;
+        unopenedPackCount += 1;
         packs[packId] = Pack(buyer, uint64(block.number), false);
         emit PackPurchased(packId, buyer, paidWithToken);
     }

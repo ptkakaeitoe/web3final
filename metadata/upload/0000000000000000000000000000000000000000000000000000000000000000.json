@@ -1,0 +1,14 @@
+{
+  "name": "Mosskin",
+  "description": "Mosskin is the Common Brickling from Mystery Club Series 01.",
+  "image": "https://gitlab.com/ptkspace-group/mystlab/-/raw/main/images/01.png",
+  "external_url": "",
+  "attributes": [
+    { "trait_type": "Collection", "value": "Mystery Club Series 01" },
+    { "trait_type": "Rarity", "value": "Common" },
+    { "trait_type": "Creature", "value": "Mosskin" },
+    { "display_type": "boost_percentage", "trait_type": "Pack probability", "value": 50 },
+    { "display_type": "number", "trait_type": "Reveal reward (MYST)", "value": 25 },
+    { "display_type": "number", "trait_type": "Daily staking reward (MYST)", "value": 1 }
+  ]
+}

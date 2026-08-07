@@ -92,6 +92,36 @@ describe("MysteryCurve", function () {
     await expect(pack.connect(alice).openPack(0)).to.emit(pack, "PackOpened");
   });
 
+  it("rejects ETH packs that would leave the reward pool underfunded", async function () {
+    const { alice, pack } = await deployFixture();
+    await expect(
+      pack.connect(alice).buyWithEth({ value: ethers.parseEther("0.002") })
+    ).to.be.revertedWithCustomError(pack, "InsufficientRewardPool");
+  });
+
+  it("only lets the owner withdraw MYST above the unopened-pack reserve", async function () {
+    const { owner, alice, treasury, token, curve, pack } = await deployFixture();
+    await buyTokens(curve, alice, 1_000);
+    await token.connect(alice).approve(pack, ethers.parseEther("1000"));
+    await pack.connect(alice).buyWithToken();
+
+    expect(await pack.rewardReserve()).to.equal(ethers.parseEther("500"));
+    expect(await pack.withdrawableSurplus()).to.equal(ethers.parseEther("500"));
+    await expect(pack.connect(alice).withdrawSurplus(1))
+      .to.be.revertedWithCustomError(pack, "OwnableUnauthorizedAccount");
+    await expect(pack.withdrawSurplus(ethers.parseEther("501")))
+      .to.be.revertedWithCustomError(pack, "InsufficientRewardPool");
+
+    await expect(pack.withdrawSurplus(ethers.parseEther("500")))
+      .to.emit(pack, "SurplusWithdrawn")
+      .withArgs(treasury.address, ethers.parseEther("500"));
+    expect(await token.balanceOf(pack)).to.equal(ethers.parseEther("500"));
+    expect(await pack.rewardReserve()).to.equal(ethers.parseEther("500"));
+
+    await ethers.provider.send("hardhat_mine", ["0x2"]);
+    await expect(pack.connect(alice).openPack(0)).to.emit(pack, "PackOpened");
+  });
+
   it("prevents opening in the purchase block window or opening twice", async function () {
     const { alice, token, curve, pack } = await deployFixture();
     await buyTokens(curve, alice, 1_000);
@@ -104,6 +134,23 @@ describe("MysteryCurve", function () {
     await pack.connect(alice).openPack(0);
     await expect(pack.connect(alice).openPack(0))
       .to.be.revertedWithCustomError(pack, "AlreadyOpened");
+  });
+
+  it("allows recovery reveals after the original block hash expires", async function () {
+    const { alice, token, curve, cards, pack } = await deployFixture();
+    await buyTokens(curve, alice, 1_000);
+    await token.connect(alice).approve(pack, ethers.parseEther("1000"));
+    await pack.connect(alice).buyWithToken();
+
+    await ethers.provider.send("hardhat_mine", ["0x102"]);
+    await expect(pack.connect(alice).openPack(0)).to.emit(pack, "PackOpened");
+
+    const totalCards =
+      (await cards.balanceOf(alice, 0)) +
+      (await cards.balanceOf(alice, 1)) +
+      (await cards.balanceOf(alice, 2)) +
+      (await cards.balanceOf(alice, 3));
+    expect(totalCards).to.equal(1);
   });
 
   it("uses 50/25/20/5 rarity boundaries", async function () {

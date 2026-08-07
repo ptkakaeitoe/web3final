@@ -1,0 +1,14 @@
+{
+  "name": "Cloudling",
+  "description": "Cloudling is the Epic Brickling from Mystery Club Series 01.",
+  "image": "https://gitlab.com/ptkspace-group/mystlab/-/raw/main/images/03.png",
+  "external_url": "",
+  "attributes": [
+    { "trait_type": "Collection", "value": "Mystery Club Series 01" },
+    { "trait_type": "Rarity", "value": "Epic" },
+    { "trait_type": "Creature", "value": "Cloudling" },
+    { "display_type": "boost_percentage", "trait_type": "Pack probability", "value": 20 },
+    { "display_type": "number", "trait_type": "Reveal reward (MYST)", "value": 200 },
+    { "display_type": "number", "trait_type": "Daily staking reward (MYST)", "value": 8 }
+  ]
+}

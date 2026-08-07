@@ -683,19 +683,24 @@ export default function App() {
       setBusy(true);
       try {
         const { token, pack } = await getLiveContracts();
+        if (currency === "MYST") {
+          const packPrice = await pack.TOKEN_PRICE();
+          const totalPrice = packPrice * BigInt(boxQuantity);
+          const allowance = await token.allowance(
+            account,
+            deployment.mysteryPack
+          );
+          if (allowance < totalPrice) {
+            setStatus(
+              `Approve ${(boxQuantity * 1000).toLocaleString()} MYST once, then confirm ${boxQuantity} box purchase${boxQuantity > 1 ? "s" : ""}.`
+            );
+            await (
+              await token.approve(deployment.mysteryPack, totalPrice)
+            ).wait();
+          }
+        }
         for (let index = 0; index < boxQuantity; index += 1) {
           if (currency === "MYST") {
-            const price = await pack.TOKEN_PRICE();
-            const allowance = await token.allowance(
-              account,
-              deployment.mysteryPack
-            );
-            if (allowance < price) {
-              setStatus(
-                "Approve MYST spending in your wallet, then confirm the box purchase."
-              );
-              await (await token.approve(deployment.mysteryPack, price)).wait();
-            }
             await (await pack.buyWithToken()).wait();
           } else {
             const price = await pack.ETH_PRICE();

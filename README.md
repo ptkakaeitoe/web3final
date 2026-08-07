@@ -23,6 +23,11 @@ packs require the project owner to pre-fund that pool using `fundRewards`.
 Consequently, card rewards redistribute already-backed tokens rather than mint
 unbacked supply.
 
+The pack contract reserves 500 MYST—the maximum Legendary payout—for every
+unopened pack. It rejects ETH purchases that would be underfunded. The owner can
+withdraw only MYST above this reserve to the configured treasury, so existing
+packs remain fully backed even after surplus withdrawals.
+
 ## Contracts
 
 - `ProjectToken.sol`: capped ERC-20, with the curve as its one-time minter
@@ -93,7 +98,8 @@ value as `maxCost` or `minReturn`.
 ## Randomness limitation
 
 The MVP uses a future block hash so the result is unknown when a pack is
-purchased. This is suitable for a testnet classroom demonstration, but block
-producers can influence block data and reveals expire after 256 blocks. A
-production version should replace this with verifiable randomness such as
-Chainlink VRF.
+purchased. If that hash is no longer available after 256 blocks, the contract
+uses recent chain entropy as a recovery path so a purchased pack never becomes
+permanently unusable. This is suitable for a testnet classroom demonstration,
+but block producers and reveal timing can influence chain data. A production
+version should replace this with verifiable randomness such as Chainlink VRF.
