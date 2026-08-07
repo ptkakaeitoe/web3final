@@ -689,7 +689,11 @@ export default function App() {
           const walletBalance = await token.balanceOf(account);
           if (walletBalance < totalPrice) {
             setStatus(
-              `You need ${formatEther(totalPrice)} MYST for ${boxQuantity} box${boxQuantity > 1 ? "es" : ""}, but your wallet has ${Number(formatEther(walletBalance)).toLocaleString()} MYST.`
+              `You need ${formatEther(totalPrice)} MYST for ${boxQuantity} box${
+                boxQuantity > 1 ? "es" : ""
+              }, but your wallet has ${Number(
+                formatEther(walletBalance)
+              ).toLocaleString()} MYST.`
             );
             return;
           }
@@ -699,7 +703,11 @@ export default function App() {
           );
           if (allowance < totalPrice) {
             setStatus(
-              `Approve ${(boxQuantity * 1000).toLocaleString()} MYST once, then confirm ${boxQuantity} box purchase${boxQuantity > 1 ? "s" : ""}.`
+              `Approve ${(
+                boxQuantity * 1000
+              ).toLocaleString()} MYST once, then confirm ${boxQuantity} box purchase${
+                boxQuantity > 1 ? "s" : ""
+              }.`
             );
             await (
               await token.approve(deployment.mysteryPack, totalPrice)
