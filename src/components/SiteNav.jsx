@@ -2,8 +2,7 @@ import React from "react";
 import Brand from "./Brand";
 
 const links = [
-  ["shop", "Build shop"], ["my-packs", "My boxes"], ["collection", "Bricklings"],
-  ["marketplace", "Market"], ["staking", "Stake"],
+  ["shop", "Build shop"], ["collection", "Bricklings"], ["marketplace", "Market"],
 ];
 
 export default function SiteNav({ page, account, connectionMode, soundOn, onToggleSound, onConnect }) {
