@@ -706,13 +706,15 @@ export default function App() {
             ).wait();
           }
         }
-        for (let index = 0; index < boxQuantity; index += 1) {
-          if (currency === "MYST") {
-            await (await pack.buyWithToken()).wait();
-          } else {
-            const price = await pack.ETH_PRICE();
-            await (await pack.buyWithEth({ value: price })).wait();
-          }
+        if (currency === "MYST") {
+          await (await pack.buyWithTokenBatch(boxQuantity)).wait();
+        } else {
+          const price = await pack.ETH_PRICE();
+          await (
+            await pack.buyWithEthBatch(boxQuantity, {
+              value: price * BigInt(boxQuantity),
+            })
+          ).wait();
         }
         await refreshLiveState();
         setCelebration({

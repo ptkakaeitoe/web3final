@@ -14,6 +14,7 @@ contract MysteryPack is Ownable, ReentrancyGuard {
     uint256 public constant TOKEN_PRICE = 1_000 ether;
     uint256 public constant ETH_PRICE = 0.002 ether;
     uint256 public constant MAX_REWARD = 500 ether;
+    uint256 public constant MAX_BATCH_SIZE = 20;
     IERC20 public immutable token;
     CardNFT public immutable cards;
     address public treasury;
@@ -35,6 +36,7 @@ contract MysteryPack is Ownable, ReentrancyGuard {
     error InsufficientRewardPool();
     error InvalidRoll();
     error InvalidTreasury();
+    error InvalidQuantity();
 
     event PackPurchased(uint256 indexed packId, address indexed buyer, bool paidWithToken);
     event PackOpened(uint256 indexed packId, address indexed owner, uint256 rarity, uint256 reward);
@@ -48,18 +50,40 @@ contract MysteryPack is Ownable, ReentrancyGuard {
     }
 
     function buyWithToken() external {
-        token.safeTransferFrom(msg.sender, address(this), TOKEN_PRICE);
-        _createPack(msg.sender, true);
+        _buyWithToken(1);
     }
 
-    function buyWithEth() external payable {
-        if (msg.value != ETH_PRICE) revert IncorrectPayment();
-        if (token.balanceOf(address(this)) < rewardReserve() + MAX_REWARD) {
+    function buyWithTokenBatch(uint256 quantity) external {
+        _buyWithToken(quantity);
+    }
+
+    function buyWithEth() external payable nonReentrant {
+        _buyWithEth(1);
+    }
+
+    function buyWithEthBatch(uint256 quantity) external payable nonReentrant {
+        _buyWithEth(quantity);
+    }
+
+    function _buyWithToken(uint256 quantity) private {
+        _validateQuantity(quantity);
+        token.safeTransferFrom(msg.sender, address(this), TOKEN_PRICE * quantity);
+        for (uint256 index; index < quantity; ++index) {
+            _createPack(msg.sender, true);
+        }
+    }
+
+    function _buyWithEth(uint256 quantity) private {
+        _validateQuantity(quantity);
+        if (msg.value != ETH_PRICE * quantity) revert IncorrectPayment();
+        if (token.balanceOf(address(this)) < rewardReserve() + MAX_REWARD * quantity) {
             revert InsufficientRewardPool();
         }
         (bool ok,) = payable(treasury).call{value: msg.value}("");
         if (!ok) revert IncorrectPayment();
-        _createPack(msg.sender, false);
+        for (uint256 index; index < quantity; ++index) {
+            _createPack(msg.sender, false);
+        }
     }
 
     function openPack(uint256 packId) external nonReentrant {
@@ -132,5 +156,9 @@ contract MysteryPack is Ownable, ReentrancyGuard {
         unopenedPackCount += 1;
         packs[packId] = Pack(buyer, uint64(block.number), false);
         emit PackPurchased(packId, buyer, paidWithToken);
+    }
+
+    function _validateQuantity(uint256 quantity) private pure {
+        if (quantity == 0 || quantity > MAX_BATCH_SIZE) revert InvalidQuantity();
     }
 }

@@ -21,7 +21,9 @@ export const packAbi = [
   "function nextPackId() view returns (uint256)",
   "function packs(uint256) view returns (address owner,uint64 purchaseBlock,bool opened)",
   "function buyWithToken()",
+  "function buyWithTokenBatch(uint256)",
   "function buyWithEth() payable",
+  "function buyWithEthBatch(uint256) payable",
   "function openPack(uint256)",
 ];
 

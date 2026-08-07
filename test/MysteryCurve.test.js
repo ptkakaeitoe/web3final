@@ -122,6 +122,40 @@ describe("MysteryCurve", function () {
     await expect(pack.connect(alice).openPack(0)).to.emit(pack, "PackOpened");
   });
 
+  it("buys multiple token-paid packs atomically", async function () {
+    const { alice, token, curve, pack } = await deployFixture();
+    await buyTokens(curve, alice, 5_000);
+    await token.connect(alice).approve(pack, ethers.parseEther("5000"));
+
+    await expect(pack.connect(alice).buyWithTokenBatch(5))
+      .to.emit(pack, "PackPurchased")
+      .withArgs(4, alice.address, true);
+    expect(await pack.nextPackId()).to.equal(5);
+    expect(await pack.unopenedPackCount()).to.equal(5);
+    expect(await pack.rewardReserve()).to.equal(ethers.parseEther("2500"));
+  });
+
+  it("buys multiple ETH-paid packs atomically when fully funded", async function () {
+    const { owner, alice, token, curve, pack } = await deployFixture();
+    await buyTokens(curve, owner, 1_500);
+    await token.approve(pack, ethers.parseEther("1500"));
+    await pack.fundRewards(ethers.parseEther("1500"));
+
+    await pack.connect(alice).buyWithEthBatch(3, {
+      value: ethers.parseEther("0.006"),
+    });
+    expect(await pack.nextPackId()).to.equal(3);
+    expect(await pack.unopenedPackCount()).to.equal(3);
+  });
+
+  it("rejects empty or oversized pack batches", async function () {
+    const { alice, pack } = await deployFixture();
+    await expect(pack.connect(alice).buyWithTokenBatch(0))
+      .to.be.revertedWithCustomError(pack, "InvalidQuantity");
+    await expect(pack.connect(alice).buyWithTokenBatch(21))
+      .to.be.revertedWithCustomError(pack, "InvalidQuantity");
+  });
+
   it("prevents opening in the purchase block window or opening twice", async function () {
     const { alice, token, curve, pack } = await deployFixture();
     await buyTokens(curve, alice, 1_000);
