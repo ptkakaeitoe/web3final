@@ -29,6 +29,19 @@ unbacked supply.
 - `BondingCurve.sol`: whole-token buys and sells with slippage limits
 - `CardNFT.sol`: ERC-1155 cards; token IDs 0–3 represent rarity
 - `MysteryPack.sol`: dual-currency pack sales and delayed reveal
+- `NFTMarketplace.sol`: non-custodial, fixed-price ERC-1155 sales in ETH
+- `NFTStaking.sol`: custodial card staking with pre-funded MYST rewards
+
+## Marketplace and staking
+
+Sellers approve the marketplace once, then list one or more copies of a rarity at
+a fixed ETH price. Listings are non-custodial, so purchases only succeed while
+the seller still owns the cards and keeps the approval active.
+
+Staking rewards are 1, 3, 8, and 20 MYST per card per day for Common through
+Legendary cards. Fund the staking contract by approving MYST and calling
+`fundRewards`; it cannot mint tokens. `emergencyUnstake` always lets a user
+recover deposited cards if the reward pool cannot pay a normal unstake.
 
 ## Run locally
 
@@ -54,6 +67,16 @@ The script writes deployment details to `deployments/sepolia.json`. The frontend
 uses those addresses for live wallet transactions on Sepolia (chain ID `11155111`).
 The wallet connection dialog also offers a local Preview mode for exploring the
 interface without submitting transactions.
+
+To add marketplace and staking to the existing Sepolia deployment without
+replacing the token, cards, or pack contracts, run:
+
+```bash
+npm run deploy:features:sepolia
+```
+
+This appends the two addresses to `deployments/sepolia.json` and enables the new
+frontend section.
 
 ## Demo sequence
 

@@ -28,6 +28,11 @@ async function main() {
   await pack.waitForDeployment();
   await (await cards.setPackContract(pack)).wait();
 
+  const marketplace = await (await ethers.getContractFactory("NFTMarketplace")).deploy(cards);
+  await marketplace.waitForDeployment();
+  const staking = await (await ethers.getContractFactory("NFTStaking")).deploy(token, cards);
+  await staking.waitForDeployment();
+
   const addresses = {
     network: network.name,
     chainId: Number((await ethers.provider.getNetwork()).chainId),
@@ -36,6 +41,8 @@ async function main() {
     bondingCurve: await curve.getAddress(),
     cardNFT: await cards.getAddress(),
     mysteryPack: await pack.getAddress(),
+    marketplace: await marketplace.getAddress(),
+    staking: await staking.getAddress(),
   };
 
   fs.mkdirSync(path.join(__dirname, "..", "deployments"), { recursive: true });

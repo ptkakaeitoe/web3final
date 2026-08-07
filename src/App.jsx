@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { BrowserProvider, Contract, formatEther, parseEther } from "ethers";
 import Brand from "./components/Brand";
-import { cardsAbi, curveAbi, packAbi, tokenAbi } from "./abis";
+import SiteNav from "./components/SiteNav";
+import AppOverlays from "./components/AppOverlays";
+import MarketplacePage from "./pages/MarketplacePage";
+import StakingPage from "./pages/StakingPage";
+import MainExperience from "./pages/MainExperience";
+import { cardsAbi, curveAbi, marketplaceAbi, packAbi, stakingAbi, tokenAbi } from "./abis";
 import { rarities } from "./data/rarities";
 import deployment from "../deployments/sepolia.json";
 import "./styles.css";
@@ -13,6 +18,11 @@ function readableError(error) {
 }
 
 export default function App() {
+  const getPageFromHash = () => {
+    const route = window.location.hash.slice(1);
+    return ["home", "shop", "my-packs", "collection", "marketplace", "staking"].includes(route) ? route : "home";
+  };
+  const [page, setPage] = useState(getPageFromHash);
   const [account, setAccount] = useState("");
   const [connectionMode, setConnectionMode] = useState(null);
   const [connectOpen, setConnectOpen] = useState(false);
@@ -27,6 +37,16 @@ export default function App() {
   const [celebration, setCelebration] = useState(null);
   const [soundOn, setSoundOn] = useState(true);
   const [liveQuote, setLiveQuote] = useState("");
+  const [listings, setListings] = useState([]);
+  const [stakedCards, setStakedCards] = useState(["0", "0", "0", "0"]);
+  const [pendingRewards, setPendingRewards] = useState(["0", "0", "0", "0"]);
+  const [marketTokenId, setMarketTokenId] = useState(0);
+  const [listingPrice, setListingPrice] = useState("0.001");
+  const [marketFilter, setMarketFilter] = useState("all");
+  const [marketSort, setMarketSort] = useState("low");
+  const mainPages = ["home", "shop", "my-packs", "collection"];
+  const isMainPage = mainPages.includes(page);
+  const featuresDeployed = Boolean(deployment.marketplace && deployment.staking);
   const previewQuote = useMemo(() => {
     const tokenAmount = Number(amount);
     if (!Number.isFinite(tokenAmount) || tokenAmount <= 0) return "Enter an amount";
@@ -67,11 +87,13 @@ export default function App() {
       curve: new Contract(deployment.bondingCurve, curveAbi, signer),
       pack: new Contract(deployment.mysteryPack, packAbi, signer),
       cardsContract: new Contract(deployment.cardNFT, cardsAbi, signer),
+      marketplace: featuresDeployed ? new Contract(deployment.marketplace, marketplaceAbi, signer) : null,
+      staking: featuresDeployed ? new Contract(deployment.staking, stakingAbi, signer) : null,
     };
   }
 
   async function refreshLiveState() {
-    const { address, token, pack, cardsContract } = await getLiveContracts();
+    const { address, token, pack, cardsContract, marketplace, staking } = await getLiveContracts();
     const [tokenBalance, nextPackId, ...cardBalances] = await Promise.all([
       token.balanceOf(address),
       pack.nextPackId(),
@@ -85,6 +107,74 @@ export default function App() {
     setBalance(Number(formatEther(tokenBalance)));
     setCards(cardBalances.map((value) => value.toString()));
     setOwnedPacks(packRows.filter(Boolean).reverse());
+    if (marketplace && staking) {
+      const listingCount = Number(await marketplace.nextListingId());
+      const [listingRows, positions, rewards] = await Promise.all([
+        Promise.all(Array.from({ length: listingCount }, (_, id) => marketplace.listings(id).then((row) => ({
+          id, seller: row.seller, tokenId: row.tokenId, amount: row.amount, price: row.price, active: row.active,
+        })))),
+        Promise.all(rarities.map((_, id) => staking.stakes(address, id))),
+        Promise.all(rarities.map((_, id) => staking.pendingReward(address, id))),
+      ]);
+      setListings(listingRows.filter((row) => row.active));
+      setStakedCards(positions.map((row) => row.amount.toString()));
+      setPendingRewards(rewards.map((value) => formatEther(value)));
+    }
+  }
+
+  async function runFeature(action) {
+    if (connectionMode !== "live" || !featuresDeployed) {
+      setStatus("Marketplace and staking require the updated contracts to be deployed on Sepolia.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await action(await getLiveContracts());
+      await refreshLiveState();
+      setStatus("Transaction confirmed on Sepolia.");
+    } catch (error) {
+      setStatus(readableError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function listCard() {
+    runFeature(async ({ cardsContract, marketplace }) => {
+      if (!await cardsContract.isApprovedForAll(account, deployment.marketplace)) {
+        setStatus("Approve the marketplace in your wallet, then confirm the listing.");
+        await (await cardsContract.setApprovalForAll(deployment.marketplace, true)).wait();
+      }
+      await (await marketplace.list(marketTokenId, 1, parseEther(listingPrice))).wait();
+    });
+  }
+
+  function buyListing(listing) {
+    runFeature(async ({ marketplace }) => {
+      await (await marketplace.buy(listing.id, { value: listing.price })).wait();
+    });
+  }
+
+  function cancelListing(listingId) {
+    runFeature(async ({ marketplace }) => { await (await marketplace.cancel(listingId)).wait(); });
+  }
+
+  function stakeCard(tokenId) {
+    runFeature(async ({ cardsContract, staking }) => {
+      if (!await cardsContract.isApprovedForAll(account, deployment.staking)) {
+        setStatus("Approve staking in your wallet, then confirm the deposit.");
+        await (await cardsContract.setApprovalForAll(deployment.staking, true)).wait();
+      }
+      await (await staking.stake(tokenId, 1)).wait();
+    });
+  }
+
+  function claimStake(tokenId) {
+    runFeature(async ({ staking }) => { await (await staking.claim(tokenId)).wait(); });
+  }
+
+  function unstakeCard(tokenId) {
+    runFeature(async ({ staking }) => { await (await staking.unstake(tokenId, 1)).wait(); });
   }
 
   async function connectLive() {
@@ -193,6 +283,23 @@ export default function App() {
     });
     window.setTimeout(() => context.close(), 1600);
   }, [soundOn]);
+
+  useEffect(() => {
+    const updatePage = () => {
+      const nextPage = getPageFromHash();
+      setPage(nextPage);
+      window.setTimeout(() => {
+        if (nextPage === "home" || nextPage === "marketplace" || nextPage === "staking") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } else {
+          document.getElementById(nextPage)?.scrollIntoView({ behavior: "smooth" });
+        }
+      }, 20);
+    };
+    window.addEventListener("hashchange", updatePage);
+    updatePage();
+    return () => window.removeEventListener("hashchange", updatePage);
+  }, []);
 
   useEffect(() => {
     const items = document.querySelectorAll(".reveal-on-scroll");
@@ -343,7 +450,7 @@ export default function App() {
   function closeCelebration(targetSection) {
     setCelebration(null);
     setStatus("");
-    if (targetSection) window.setTimeout(() => document.querySelector(targetSection)?.scrollIntoView({ behavior: "smooth" }), 50);
+    if (targetSection) window.location.hash = targetSection;
   }
 
   const collectionEntries = rarities.map((rarity, id) => ({ rarity, id, owned: Number(cards[id]) > 0 }));
@@ -352,9 +459,10 @@ export default function App() {
   function renderCreatureCard({ rarity, id, owned }) {
     return (
       <div className={`nft-card ${rarity.className} ${owned ? "is-owned" : "not-owned"}`} key={rarity.name}>
-        <div className="card-meta"><span>MC—0{id + 1}</span><span>{owned ? `${cards[id]} IN WALLET` : "UNDISCOVERED"}</span></div>
+        <div className="card-meta"><span>MC—0{id + 1}</span><span>{owned ? "COLLECTED" : "UNDISCOVERED"}</span></div>
         <div className="card-art">
           <img src={rarity.image} alt={owned ? rarity.creature : ""} />
+          {owned && <div className="owned-count-badge"><strong>×{cards[id]}</strong><small>OWNED</small></div>}
           {!owned && <div className="locked-art"><span>?</span><small>OPEN A BOX TO MEET</small></div>}
           <span className="rarity-chip">{rarity.name}</span>
         </div>
@@ -368,196 +476,31 @@ export default function App() {
 
   return (
     <main>
-      <nav className="site-nav">
-        <div className="nav-inner">
-          <Brand linked />
-          <div className="nav-menu">
-            <a href="#shop">Build shop</a>
-            <a href="#my-packs">My boxes</a>
-            <a href="#collection">Bricklings</a>
-          </div>
-          <div className="nav-actions">
-            <button className={`sound-toggle ${soundOn ? "is-on" : ""}`} onClick={toggleSound} aria-label={`${soundOn ? "Mute" : "Enable"} interface sounds`} aria-pressed={soundOn}>
-              <span className="speaker-icon"><i /><i /><i /></span>
-            </button>
-            <button className={`wallet ${account ? "connected" : ""}`} onClick={connect}>
-              {account ? (connectionMode === "preview" ? "Preview mode" : `${account.slice(0, 6)}…${account.slice(-4)}`) : "Connect wallet"}
-            </button>
-          </div>
-        </div>
-      </nav>
+      <SiteNav page={page} account={account} connectionMode={connectionMode} soundOn={soundOn} onToggleSound={toggleSound} onConnect={connect} />
 
-      <header className="hero">
-        <img src="/assets/brick-creatures-hero.png" alt="Four colorful brick-built creatures gathered around a glowing mystery cube" />
-        <div className="hero-copy">
-          <span className="kicker">BUILD · REVEAL · COLLECT</span>
-          <h1>Meet your next<br /><em>Brickling.</em></h1>
-          <p>Crack open a mystery box, discover a buildable creature, and grow a colorful collection that is uniquely yours.</p>
-          <div className="hero-actions"><a className="hero-button" href="#shop">Open the build shop <span>→</span></a><a className="text-button" href="#collection">Meet the crew ↓</a></div>
-        </div>
-        <div className="hero-stats"><span><strong>4</strong>CREATURES</span><span><strong>1</strong>MYSTERY BOX</span><span><strong>∞</strong>ADVENTURES</span></div>
-      </header>
-
-      <section className="shop-section reveal-on-scroll" id="shop">
-          <div className="section-heading">
-          <div><span>BUILD SHOP / 01</span><h2>Pick your mystery box</h2></div>
-          <p>Grab some MYST bricks, then unlock one surprise creature.</p>
-        </div>
-
-        <div className="shop-grid">
-          <article className="trade-card">
-            <div className="card-heading">
-              <div><span className="step">1</span><div><small>FIRST, GET SOME TOKENS</small><h3>Trade MYST</h3></div></div>
-              <span className="curve-label">LIVE RATE</span>
-            </div>
-            <div className="trade-balance">
-              <span>Wallet balance</span>
-              <strong>{account ? `${balance.toLocaleString()} MYST` : "Not connected"}</strong>
-            </div>
-            <div className="toggle">
-              <button className={mode === "buy" ? "active" : ""} onClick={() => setMode("buy")}>Buy</button>
-              <button className={mode === "sell" ? "active" : ""} onClick={() => setMode("sell")}>Sell</button>
-            </div>
-            <label>How many tokens?</label>
-            <div className="input"><input inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} /><span>MYST</span></div>
-            <div className="quote"><span>You {mode === "buy" ? "pay" : "receive"}</span><strong>{connectionMode === "live" ? (liveQuote || "Loading quote…") : previewQuote}</strong></div>
-            <button className="primary" disabled={!account || busy} onClick={trade}>
-              {busy ? "Waiting for wallet…" : account ? `${mode === "buy" ? "Buy" : "Sell"} MYST` : "Connect wallet first"} <span>→</span>
-            </button>
-          </article>
-
-          <article className="shop-pack-card">
-            <div className="shop-pack-visual">
-              <span className="available-pill">AVAILABLE TO BUY</span>
-              <div className="foil-pack">
-                <div className="foil-top"><span>MC</span><span>01</span></div>
-                <div className="foil-creature">?</div>
-                <div><strong>Mystery Box</strong><small>ONE BRICKLING INSIDE</small></div>
-              </div>
-            </div>
-            <div className="shop-pack-info">
-              <div className="product-step"><span className="step">2</span><small>THEN, CHOOSE YOUR PACK</small></div>
-              <h3>What will you build?</h3>
-              <p>Every colorful box holds one surprise Brickling and a bonus MYST reward. Some builds are much harder to find.</p>
-              <div className="odds">
-                <span><i className="common" />70% Common</span><span><i className="rare" />20% Rare</span>
-                <span><i className="epic" />9% Epic</span><span><i className="legendary" />1% Legendary</span>
-              </div>
-              <div className="box-quantity">
-                <div><small>HOW MANY BOXES?</small><strong>Choose a bundle</strong></div>
-                <div className="quantity-options">{[1, 3, 5].map((quantity) => <button key={quantity} className={boxQuantity === quantity ? "active" : ""} onClick={() => setBoxQuantity(quantity)}>{quantity}<span>{quantity === 1 ? "BOX" : "BOXES"}</span></button>)}</div>
-              </div>
-              <div className="pay-options">
-                <button disabled={!account || busy} onClick={() => buyBox("MYST")}>
-                  <span><small>PAY WITH MYST · ≈ {mystBundleEthValue.toFixed(3)} ETH</small><strong>{(boxQuantity * 1000).toLocaleString()} MYST</strong><em>Save {(ethBundleCost - mystBundleEthValue).toFixed(3)} ETH</em></span><b>{mystDiscount}% CHEAPER</b>
-                </button>
-                <button disabled={!account || busy} onClick={() => buyBox("ETH")}>
-                  <span><small>PAY WITH ETH</small><strong>{(boxQuantity * 0.002).toFixed(3)} ETH</strong></span><i>→</i>
-                </button>
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section className="inventory-section reveal-on-scroll" id="my-packs">
-        <div className="section-heading">
-          <div><span>BUILD BENCH / 02</span><h2>Your mystery boxes</h2></div>
-          <p>Everything waiting to be opened lives on your workbench.</p>
-        </div>
-        {!account ? (
-          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>Connect to see your boxes</h3><p>Your sealed and revealed mystery boxes will appear here.</p></div><button onClick={connect}>Connect wallet</button></div>
-        ) : ownedPacks.length === 0 ? (
-          <div className="inventory-empty"><div className="mini-pack">?</div><div><h3>No boxes yet</h3><p>Pick up your first Mystery Box from the shop above.</p></div><a href="#shop">Go to build shop</a></div>
-        ) : sealedPacks.length === 0 ? (
-          <div className="inventory-empty"><div className="mini-pack">✓</div><div><h3>Your build bench is clear</h3><p>Every purchased box has been revealed and added to your collection.</p></div><a href="#shop">Buy another box</a></div>
-        ) : (
-          <div className="inventory-grid">
-            <article className="owned-pack box-stack-card">
-              <div className="owned-pack-art box-stack-art"><i /><i /><span>?</span><b>×{sealedPacks.length}</b></div>
-              <div className="owned-pack-copy">
-                <small>SEALED MYSTERY BOXES</small>
-                <h3>{sealedPacks.length} box{sealedPacks.length > 1 ? "es" : ""} ready to reveal</h3>
-                <p>Open the next box in your stack to discover a Brickling and collect its MYST reward.</p>
-              </div>
-              <button disabled={busy} onClick={() => revealBox(sealedPacks[0].id)}>{busy ? "Waiting for wallet…" : "Reveal next box"} <span>→</span></button>
-            </article>
-          </div>
-        )}
-      </section>
-
-      <section className="collection reveal-on-scroll" id="collection">
-        <div className="section-heading">
-          <div><span>BRICKLING CREW / 03</span><h2>Meet the whole crew</h2></div>
-          <p>Four colorful builds. Can you discover every one?</p>
-        </div>
-        {collectionEntries.some((entry) => entry.owned) && (
-          <div className="collection-group owned-group">
-            <div className="collection-group-heading"><div><span>✓</span><strong>Your Bricklings</strong></div><small>{collectionEntries.filter((entry) => entry.owned).length} OF {rarities.length} DISCOVERED</small></div>
-            <div className="card-row owned-row">{collectionEntries.filter((entry) => entry.owned).map(renderCreatureCard)}</div>
-          </div>
-        )}
-        <div className="collection-group locked-group">
-          <div className="collection-group-heading"><div><span>?</span><strong>Still to discover</strong></div><small>{collectionEntries.filter((entry) => !entry.owned).length} REMAINING</small></div>
-          {collectionEntries.some((entry) => !entry.owned) ? (
-            <div className="card-row locked-row">{collectionEntries.filter((entry) => !entry.owned).map(renderCreatureCard)}</div>
-          ) : <div className="collection-complete">You found every Brickling. Collection complete!</div>}
-        </div>
-      </section>
-
-      {celebration && (
-        <div className="celebration-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeCelebration()}>
-          <div className={`celebration-modal celebration-type-${celebration.type}`} role="dialog" aria-modal="true" aria-labelledby="celebration-title">
-            <div className="confetti" aria-hidden="true">{Array.from({ length: 14 }, (_, id) => <i key={id} />)}</div>
-            <button className="celebration-close" onClick={() => closeCelebration()} aria-label="Close celebration">×</button>
-            {celebration.type === "trade" && <>
-              <div className="success-build"><span>M</span><i /><i /><i /></div>
-              <small>{celebration.preview ? "PREVIEW TRADE COMPLETE" : "SEPOLIA TRADE COMPLETE"}</small>
-              <h2 id="celebration-title">MYST {celebration.mode === "buy" ? "added" : "sold"}!</h2>
-              <p><strong>{celebration.amount.toLocaleString()} MYST</strong><span>{celebration.mode === "buy" ? "Cost" : "Received"} {celebration.eth} ETH</span></p>
-              <button className="celebration-primary" onClick={() => closeCelebration()}>Back to the shop</button>
-            </>}
-            {celebration.type === "box" && <>
-              <div className="celebration-box"><span>?</span>{celebration.quantity > 1 && <b>×{celebration.quantity}</b>}</div>
-              <small>{celebration.quantity > 1 ? `${celebration.quantity} BOX BUNDLE` : celebration.live ? "ON-CHAIN MYSTERY BOX" : `MYSTERY BOX #${celebration.id}`}</small>
-              <h2 id="celebration-title">{celebration.quantity > 1 ? "Boxes secured!" : "Box secured!"}</h2>
-              <p>Purchased {celebration.quantity} box{celebration.quantity > 1 ? "es" : ""} with {celebration.currency}. Your surprise Brickling{celebration.quantity > 1 ? "s are" : " is"} waiting on the build bench.</p>
-              <button className="celebration-primary" onClick={() => closeCelebration("#my-packs")}>Go reveal it <span>→</span></button>
-            </>}
-            {celebration.type === "reveal" && <>
-              <div className={`reveal-stage reveal-${celebration.rarity.className}`}>
-                <div className="reveal-rays" aria-hidden="true" />
-                <div className="reveal-sparks" aria-hidden="true">{Array.from({ length: 10 }, (_, id) => <i key={id} />)}</div>
-                <div className={`reveal-card reveal-${celebration.rarity.className}`}>
-                  <img src={celebration.rarity.image} alt={celebration.rarity.creature} />
-                  <b>{celebration.rarity.name}</b>
-                </div>
-              </div>
-              <small>YOU FOUND A {celebration.rarity.name.toUpperCase()} BRICKLING</small>
-              <h2 id="celebration-title">{celebration.rarity.creature}!</h2>
-              <p><strong>+{celebration.rarity.reward} MYST</strong><span>Reward added to your {celebration.preview ? "preview balance" : "wallet"}</span></p>
-              <button className="celebration-primary" onClick={() => closeCelebration("#collection")}>View collection <span>→</span></button>
-            </>}
-          </div>
-        </div>
-      )}
-      {connectOpen && (
-        <div className="connect-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setConnectOpen(false)}>
-          <div className="connect-modal" role="dialog" aria-modal="true" aria-labelledby="connect-title">
-            <button className="connect-close" onClick={() => setConnectOpen(false)} aria-label="Close">×</button>
-            <span className="connect-kicker">CHOOSE HOW TO PLAY</span>
-            <h2 id="connect-title">Connect to Mystery Club</h2>
-            <p>Use the deployed Sepolia contracts, or explore safely with simulated balances.</p>
-            <button className="connect-choice live-choice" disabled={busy} onClick={connectLive}>
-              <span><strong>Connect wallet</strong><small>Live · Sepolia testnet</small></span><b>→</b>
-            </button>
-            <button className="connect-choice preview-choice" disabled={busy} onClick={connectPreview}>
-              <span><strong>Try preview mode</strong><small>Local simulation · no transactions</small></span><b>◇</b>
-            </button>
-          </div>
-        </div>
-      )}
-      {status && !celebration && <div className="toast"><span>{status}</span><button onClick={() => setStatus("")} aria-label="Dismiss">×</button></div>}
+      <MainExperience
+        visible={isMainPage} account={account} busy={busy} balance={balance} amount={amount} setAmount={setAmount}
+        mode={mode} setMode={setMode} connectionMode={connectionMode} liveQuote={liveQuote} previewQuote={previewQuote}
+        trade={trade} boxQuantity={boxQuantity} setBoxQuantity={setBoxQuantity} mystBundleEthValue={mystBundleEthValue}
+        ethBundleCost={ethBundleCost} mystDiscount={mystDiscount} buyBox={buyBox} connect={connect}
+        ownedPacks={ownedPacks} sealedPacks={sealedPacks} revealBox={revealBox} collectionEntries={collectionEntries}
+        renderCreatureCard={renderCreatureCard} cards={cards} rarities={rarities}
+      />
+      <MarketplacePage
+        visible={page === "marketplace"} deployed={featuresDeployed} listings={listings} account={account}
+        cards={cards} busy={busy} tokenId={marketTokenId} setTokenId={setMarketTokenId}
+        price={listingPrice} setPrice={setListingPrice} filter={marketFilter} setFilter={setMarketFilter}
+        sort={marketSort} setSort={setMarketSort} onList={listCard} onBuy={buyListing} onCancel={cancelListing}
+      />
+      <StakingPage
+        visible={page === "staking"} deployed={featuresDeployed} cards={cards} stakedCards={stakedCards}
+        pendingRewards={pendingRewards} busy={busy} onStake={stakeCard} onClaim={claimStake} onUnstake={unstakeCard}
+      />
+      <AppOverlays
+        celebration={celebration} closeCelebration={closeCelebration} connectOpen={connectOpen}
+        setConnectOpen={setConnectOpen} busy={busy} connectLive={connectLive} connectPreview={connectPreview}
+        status={status} setStatus={setStatus}
+      />
       <footer><Brand /><p>Built one colorful brick at a time · {connectionMode === "preview" ? "Preview mode" : "Live on Sepolia"}</p></footer>
     </main>
   );

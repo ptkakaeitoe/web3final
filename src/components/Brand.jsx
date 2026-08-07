@@ -8,5 +8,5 @@ const content = (
 );
 
 export default function Brand({ linked = false }) {
-  return linked ? <a className="brand" href="#">{content}</a> : <div className="brand">{content}</div>;
+  return linked ? <a className="brand" href="#home">{content}</a> : <div className="brand">{content}</div>;
 }
