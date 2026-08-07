@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import Brand from "./Brand";
 
 const links = [
-  ["shop", "Build shop"], ["collection", "Bricklings"], ["marketplace", "Market"],
+  ["shop", "Build shop"], ["collection", "Bricklings"],
+  ["marketplace", "Market"], ["staking", "Stake"],
 ];
 
 const mobileLinks = [
