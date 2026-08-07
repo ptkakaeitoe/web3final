@@ -686,6 +686,13 @@ export default function App() {
         if (currency === "MYST") {
           const packPrice = await pack.TOKEN_PRICE();
           const totalPrice = packPrice * BigInt(boxQuantity);
+          const walletBalance = await token.balanceOf(account);
+          if (walletBalance < totalPrice) {
+            setStatus(
+              `You need ${formatEther(totalPrice)} MYST for ${boxQuantity} box${boxQuantity > 1 ? "es" : ""}, but your wallet has ${Number(formatEther(walletBalance)).toLocaleString()} MYST.`
+            );
+            return;
+          }
           const allowance = await token.allowance(
             account,
             deployment.mysteryPack
