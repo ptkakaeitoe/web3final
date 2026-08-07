@@ -61,8 +61,7 @@ export default function MainExperience({
               <h3>What will you build?</h3>
               <p>Every colorful box holds one surprise Brickling and a bonus MYST reward. Some builds are much harder to find.</p>
               <div className="odds">
-                <span><i className="common" />70% Common</span><span><i className="rare" />20% Rare</span>
-                <span><i className="epic" />9% Epic</span><span><i className="legendary" />1% Legendary</span>
+                {rarities.map((rarity) => <span key={rarity.name}><i className={rarity.className} />{rarity.chance}% {rarity.name}</span>)}
               </div>
               <div className="box-quantity">
                 <div><small>HOW MANY BOXES?</small><strong>Choose a bundle</strong></div>
@@ -122,7 +121,7 @@ export default function MainExperience({
           <div className="collection-group-heading"><div><span>?</span><strong>Still to discover</strong></div><small>{collectionEntries.filter((entry) => !entry.owned).length} REMAINING</small></div>
           {collectionEntries.some((entry) => !entry.owned) ? (
             <div className="card-row locked-row">{collectionEntries.filter((entry) => !entry.owned).map(renderCreatureCard)}</div>
-          ) : <div className="collection-complete">You found every Brickling. Collection complete!</div>}
+          ) : <div className="collection-complete"><span>★</span><div><small>CREW STATUS · 100%</small><h3>Collection complete!</h3><p>You found every Brickling in Series 01.</p></div><b>4 / 4</b></div>}
         </div>
       </section>
 

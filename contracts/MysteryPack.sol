@@ -32,6 +32,7 @@ contract MysteryPack is Ownable, ReentrancyGuard {
     error RevealNotReady();
     error RevealExpired();
     error InsufficientRewardPool();
+    error InvalidRoll();
 
     event PackPurchased(uint256 indexed packId, address indexed buyer, bool paidWithToken);
     event PackOpened(uint256 indexed packId, address indexed owner, uint256 rarity, uint256 reward);
@@ -66,7 +67,7 @@ contract MysteryPack is Ownable, ReentrancyGuard {
         uint256 roll = uint256(keccak256(abi.encodePacked(
             blockhash(randomnessBlock), packId, pack.owner, address(this)
         ))) % 10_000;
-        uint256 rarity = roll < 100 ? 3 : roll < 1_000 ? 2 : roll < 3_000 ? 1 : 0;
+        uint256 rarity = rarityForRoll(roll);
         uint256 reward = cards.tokenReward(rarity);
         if (token.balanceOf(address(this)) < reward) revert InsufficientRewardPool();
 
@@ -81,6 +82,12 @@ contract MysteryPack is Ownable, ReentrancyGuard {
 
     function setTreasury(address newTreasury) external onlyOwner {
         treasury = newTreasury;
+    }
+
+    /// @notice Maps a 0–9,999 roll to 5% legendary, 20% epic, 25% rare, 50% common.
+    function rarityForRoll(uint256 roll) public pure returns (uint256) {
+        if (roll >= 10_000) revert InvalidRoll();
+        return roll < 500 ? 3 : roll < 2_500 ? 2 : roll < 5_000 ? 1 : 0;
     }
 
     function _createPack(address buyer, bool paidWithToken) private {

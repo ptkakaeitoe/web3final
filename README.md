@@ -11,7 +11,7 @@ curve, an ERC-20 token, mystery packs, and ERC-1155 collectible cards.
 - Linear slope: **0.000000000001 ETH** per token already minted
 - Token pack price: **1,000 MYST**
 - ETH pack price: **0.002 ETH**, making the 1,000 MYST option discounted at launch
-- Rarity odds: Common 70%, Rare 20%, Epic 9%, Legendary 1%
+- Rarity odds: Common 50%, Rare 25%, Epic 20%, Legendary 5%
 - Rewards: 25, 75, 200, or 500 MYST respectively
 
 The bonding curve holds all ETH received from token purchases. Selling burns

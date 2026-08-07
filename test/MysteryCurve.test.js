@@ -105,4 +105,17 @@ describe("MysteryCurve", function () {
     await expect(pack.connect(alice).openPack(0))
       .to.be.revertedWithCustomError(pack, "AlreadyOpened");
   });
+
+  it("uses 50/25/20/5 rarity boundaries", async function () {
+    const { pack } = await deployFixture();
+    expect(await pack.rarityForRoll(0)).to.equal(3);
+    expect(await pack.rarityForRoll(499)).to.equal(3);
+    expect(await pack.rarityForRoll(500)).to.equal(2);
+    expect(await pack.rarityForRoll(2_499)).to.equal(2);
+    expect(await pack.rarityForRoll(2_500)).to.equal(1);
+    expect(await pack.rarityForRoll(4_999)).to.equal(1);
+    expect(await pack.rarityForRoll(5_000)).to.equal(0);
+    expect(await pack.rarityForRoll(9_999)).to.equal(0);
+    await expect(pack.rarityForRoll(10_000)).to.be.revertedWithCustomError(pack, "InvalidRoll");
+  });
 });

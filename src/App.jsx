@@ -65,7 +65,13 @@ export default function App() {
     setAccount("preview");
     setBalance(2450);
     setOwnedPacks([]);
-    setCards(["0", "0", "0", "0"]);
+    setCards(["1", "1", "0", "0"]);
+    setStakedCards(["0", "0", "0", "0"]);
+    setPendingRewards(["0", "0", "0", "0"]);
+    setListings([
+      { id: 0, seller: "0x8b21a37c941F61E043fC5c9e98515F2a0C937A11", tokenId: 2n, amount: 1n, price: parseEther("0.004"), active: true },
+      { id: 1, seller: "0x49a71B8D55b4C21c91e83aA28F1c79E688cC0124", tokenId: 3n, amount: 1n, price: parseEther("0.012"), active: true },
+    ]);
     setConnectOpen(false);
     setStatus("Preview mode enabled. Actions are simulated locally and do not use Sepolia.");
   }
@@ -140,6 +146,13 @@ export default function App() {
   }
 
   function listCard() {
+    if (connectionMode === "preview") {
+      if (!Number.isFinite(Number(listingPrice)) || Number(listingPrice) <= 0) return setStatus("Enter a valid ETH price.");
+      const id = listings.reduce((highest, listing) => Math.max(highest, Number(listing.id)), -1) + 1;
+      setListings((current) => [...current, { id, seller: account, tokenId: BigInt(marketTokenId), amount: 1n, price: parseEther(listingPrice), active: true }]);
+      setStatus("Preview listing published locally.");
+      return;
+    }
     runFeature(async ({ cardsContract, marketplace }) => {
       if (!await cardsContract.isApprovedForAll(account, deployment.marketplace)) {
         setStatus("Approve the marketplace in your wallet, then confirm the listing.");
@@ -150,16 +163,35 @@ export default function App() {
   }
 
   function buyListing(listing) {
+    if (connectionMode === "preview") {
+      const id = Number(listing.tokenId);
+      setListings((current) => current.filter((item) => item.id !== listing.id));
+      setCards((current) => current.map((count, index) => index === id ? String(Number(count) + 1) : count));
+      setStatus(`${rarities[id].creature} purchased in Preview mode.`);
+      return;
+    }
     runFeature(async ({ marketplace }) => {
       await (await marketplace.buy(listing.id, { value: listing.price })).wait();
     });
   }
 
   function cancelListing(listingId) {
+    if (connectionMode === "preview") {
+      setListings((current) => current.filter((listing) => listing.id !== listingId));
+      setStatus("Preview listing cancelled.");
+      return;
+    }
     runFeature(async ({ marketplace }) => { await (await marketplace.cancel(listingId)).wait(); });
   }
 
   function stakeCard(tokenId) {
+    if (connectionMode === "preview") {
+      if (Number(cards[tokenId]) < 1) return setStatus("You do not own this Brickling.");
+      setCards((current) => current.map((value, id) => id === tokenId ? String(Number(value) - 1) : value));
+      setStakedCards((current) => current.map((value, id) => id === tokenId ? String(Number(value) + 1) : value));
+      setStatus("Brickling staked locally. Rewards now accrue every second.");
+      return;
+    }
     runFeature(async ({ cardsContract, staking }) => {
       if (!await cardsContract.isApprovedForAll(account, deployment.staking)) {
         setStatus("Approve staking in your wallet, then confirm the deposit.");
@@ -170,10 +202,25 @@ export default function App() {
   }
 
   function claimStake(tokenId) {
+    if (connectionMode === "preview") {
+      const reward = Number(pendingRewards[tokenId]);
+      if (reward <= 0) return setStatus("No preview rewards to claim yet.");
+      setBalance((current) => current + reward);
+      setPendingRewards((current) => current.map((value, id) => id === tokenId ? "0" : value));
+      setStatus(`${reward} MYST claimed in Preview mode.`);
+      return;
+    }
     runFeature(async ({ staking }) => { await (await staking.claim(tokenId)).wait(); });
   }
 
   function unstakeCard(tokenId) {
+    if (connectionMode === "preview") {
+      if (Number(stakedCards[tokenId]) < 1) return;
+      setStakedCards((current) => current.map((value, id) => id === tokenId ? String(Number(value) - 1) : value));
+      setCards((current) => current.map((value, id) => id === tokenId ? String(Number(value) + 1) : value));
+      setStatus("Brickling returned to your preview wallet.");
+      return;
+    }
     runFeature(async ({ staking }) => { await (await staking.unstake(tokenId, 1)).wait(); });
   }
 
@@ -364,6 +411,35 @@ export default function App() {
     };
   }, [connectionMode]);
 
+  useEffect(() => {
+    if (page !== "staking" || !connectionMode) return undefined;
+    let cancelled = false;
+
+    if (connectionMode === "preview") {
+      const rates = [1, 3, 8, 20];
+      const timer = window.setInterval(() => {
+        setPendingRewards((current) => current.map((value, id) =>
+          String(Number(value) + Number(stakedCards[id]) * rates[id] / 86400)
+        ));
+      }, 1000);
+      return () => window.clearInterval(timer);
+    }
+
+    if (!featuresDeployed) return undefined;
+    const refreshPendingRewards = async () => {
+      try {
+        const { address, staking } = await getLiveContracts();
+        const rewards = await Promise.all(rarities.map((_, id) => staking.pendingReward(address, id)));
+        if (!cancelled) setPendingRewards(rewards.map((value) => formatEther(value)));
+      } catch {
+        // Keep the last successful values during temporary RPC failures.
+      }
+    };
+    refreshPendingRewards();
+    const timer = window.setInterval(refreshPendingRewards, 1000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [page, connectionMode, featuresDeployed, stakedCards]);
+
   function toggleSound() {
     const next = !soundOn;
     setSoundOn(next);
@@ -437,7 +513,11 @@ export default function App() {
       return;
     }
     const roll = Math.random() * 100;
-    const rarityId = roll < 70 ? 0 : roll < 90 ? 1 : roll < 99 ? 2 : 3;
+    let cumulativeChance = 0;
+    const rarityId = rarities.findIndex((rarity) => {
+      cumulativeChance += rarity.chance;
+      return roll < cumulativeChance;
+    });
     const rarity = rarities[rarityId];
     setOwnedPacks((current) => current.map((pack) => pack.id === packId ? { ...pack, opened: true, rarityId } : pack));
     setCards((current) => current.map((count, id) => id === rarityId ? String(Number(count) + 1) : count));
@@ -487,13 +567,13 @@ export default function App() {
         renderCreatureCard={renderCreatureCard} cards={cards} rarities={rarities}
       />
       <MarketplacePage
-        visible={page === "marketplace"} deployed={featuresDeployed} listings={listings} account={account}
+        visible={page === "marketplace"} deployed={featuresDeployed || connectionMode === "preview"} listings={listings} account={account}
         cards={cards} busy={busy} tokenId={marketTokenId} setTokenId={setMarketTokenId}
         price={listingPrice} setPrice={setListingPrice} filter={marketFilter} setFilter={setMarketFilter}
         sort={marketSort} setSort={setMarketSort} onList={listCard} onBuy={buyListing} onCancel={cancelListing}
       />
       <StakingPage
-        visible={page === "staking"} deployed={featuresDeployed} cards={cards} stakedCards={stakedCards}
+        visible={page === "staking"} deployed={featuresDeployed || connectionMode === "preview"} cards={cards} stakedCards={stakedCards}
         pendingRewards={pendingRewards} busy={busy} onStake={stakeCard} onClaim={claimStake} onUnstake={unstakeCard}
       />
       <AppOverlays
