@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function AppOverlays({ celebration, closeCelebration, connectOpen, setConnectOpen, busy, connectLive, connectPreview, status, setStatus }) {
+export default function AppOverlays({ celebration, closeCelebration, hasSealedPacks, connectOpen, setConnectOpen, busy, connectLive, connectPreview, status, setStatus }) {
   return <>
       {celebration && (
         <div className="celebration-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeCelebration()}>
@@ -33,7 +33,10 @@ export default function AppOverlays({ celebration, closeCelebration, connectOpen
               <small>YOU FOUND A {celebration.rarity.name.toUpperCase()} BRICKLING</small>
               <h2 id="celebration-title">{celebration.rarity.creature}!</h2>
               <p><strong>+{celebration.rarity.reward} MYST</strong><span>Reward added to your {celebration.preview ? "preview balance" : "wallet"}</span></p>
-              <button className="celebration-primary" onClick={() => closeCelebration("#collection")}>View collection <span>→</span></button>
+              <div className="reveal-next-actions">
+                {hasSealedPacks && <button className="celebration-primary" onClick={() => closeCelebration("#my-packs")}>Open another <span>→</span></button>}
+                <button className={hasSealedPacks ? "celebration-secondary" : "celebration-primary"} onClick={() => closeCelebration("#collection")}>View collection</button>
+              </div>
             </>}
           </div>
         </div>

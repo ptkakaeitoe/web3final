@@ -577,7 +577,7 @@ export default function App() {
         pendingRewards={pendingRewards} busy={busy} onStake={stakeCard} onClaim={claimStake} onUnstake={unstakeCard}
       />
       <AppOverlays
-        celebration={celebration} closeCelebration={closeCelebration} connectOpen={connectOpen}
+        celebration={celebration} closeCelebration={closeCelebration} hasSealedPacks={sealedPacks.length > 0} connectOpen={connectOpen}
         setConnectOpen={setConnectOpen} busy={busy} connectLive={connectLive} connectPreview={connectPreview}
         status={status} setStatus={setStatus}
       />
